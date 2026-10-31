@@ -14,6 +14,9 @@ static class Program
         using var seedDb = new AppDbContext();
         DatabaseInitializer.EnsureSeed(seedDb, Di.PasswordHasher);
 
-        System.Windows.Forms.Application.Run(new Login(Di.AuthService));
+        if (new Login(Di.AuthService).ShowDialog() == DialogResult.OK)
+        {
+            System.Windows.Forms.Application.Run(new MainShell());
+        }
     }
 }

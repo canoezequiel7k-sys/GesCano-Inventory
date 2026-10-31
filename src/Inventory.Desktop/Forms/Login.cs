@@ -69,10 +69,8 @@ public partial class Login : Form
             Session.User = new UserDto(response.UserId, response.Username, response.CompanyId, response.Role);
             Session.Company = new CompanyDto(response.CompanyId, response.CompanyName);
 
-            Hide();
-            var main = new Main();
-            main.FormClosed += (_, _) => Close();
-            main.Show();
+            DialogResult = DialogResult.OK;
+            Close();
         }
         catch (Exception ex)
         {
