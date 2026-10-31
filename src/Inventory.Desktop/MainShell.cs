@@ -50,18 +50,40 @@ public partial class MainShell : Form
         {
             Dock = DockStyle.Top,
             Height = 50,
-            BackColor = Color.FromArgb(52, 73, 94)
+            BackColor = Color.FromArgb(52, 73, 94),
+            Padding = new Padding(12, 0, 12, 0)
         };
+
+        var topLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 1
+        };
+        topLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        topLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        topLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+
         var lblSystem = new Label
         {
-            Text = "GESCOM - SISTEMA DE GESTIÓN EMPRESARIAL",
+            Text = "GesCan - Sistema de Gestión Empresarial",
             Font = new Font("Segoe UI", 11F, FontStyle.Bold),
             ForeColor = Color.White,
             TextAlign = ContentAlignment.MiddleLeft,
-            Dock = DockStyle.Fill,
-            Padding = new Padding(20, 0, 0, 0)
+            Dock = DockStyle.Fill
         };
-        topBar.Controls.Add(lblSystem);
+
+        var txtBuscar = new TextBox
+        {
+            Width = 220,
+            PlaceholderText = "Buscar...",
+            Font = new Font("Segoe UI", 9F),
+            Anchor = AnchorStyles.Right | AnchorStyles.Top
+        };
+
+        topLayout.Controls.Add(lblSystem, 0, 0);
+        topLayout.Controls.Add(txtBuscar, 1, 0);
+        topBar.Controls.Add(topLayout);
 
         // ===== CENTER: PERFIL | TERMINAL =====
         _centerLayout.Dock = DockStyle.Fill;
