@@ -1,14 +1,84 @@
-namespace Inventory.Domain.Entities;
+using System;
+using Inventory.Domain.Common;
+using Inventory.Domain.Identity;
 
-public class User
+// [DDD] Agregado raíz del bounded context Identity.
+// Representa un usuario del sistema, perteneciente a una empresa.
+// Invariantes: Legajo único por empresa, hash de contraseña obligatorio,
+// rol dentro de UserRole (Admin, Employee).
+public sealed class User : Entity
 {
-    public int Id { get; set; }
-    public int CompanyId { get; set; }
-    public string Username { get; set; } = string.Empty;
-    public string PasswordHash { get; set; } = string.Empty;
-    public string Role { get; set; } = "User";
-    public bool IsActive { get; set; } = true;
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    // Datos de la empresa
+    public int CompanyId { get; private set; }
 
-    public Company Company { get; set; } = null!;
+    // Identificación personal
+    public EmployeeNumber EmployeeNumber { get; private set; }
+    public JobTitle JobTitle { get; private set; }
+
+    // Autenticación
+    public string Username { get; private set; } = string.Empty;
+    public string PasswordHash { get; private set; } = string.Empty;
+
+    // Rol y estado
+    public UserRole Role { get; private set; }
+    public bool IsActive { get; private set; }
+
+    // Navegación
+    // Company navigation property - will be resolved via CompanyId
+
+    // Constructor factory
+    public static User Create(int companyId, EmployeeNumber employeeNumber, JobTitle jobTitle,
+        string username, string passwordHash, UserRole role, bool isActive)
+    {
+        if (string.IsNullOrWhiteSpace(username))
+            throw new DomainException("El nombre de usuario es obligatorio.");
+
+        if (string.IsNullOrWhiteSpace(passwordHash))
+            throw new DomainException("El hash de contraseña es obligatorio.");
+
+        var user = new User
+        {
+            Id = 0,
+            CompanyId = companyId,
+            EmployeeNumber = employeeNumber,
+            JobTitle = jobTitle,
+            Username = username,
+            PasswordHash = passwordHash,
+            Role = role,
+            IsActive = isActive
+        };
+
+        user.AddDomainEvent(new DomainEvent("UserCreated"));
+        return user;
+    }
+
+    // Métodos de actualización
+
+    public void UpdatePasswordHash(string newHash)
+    {
+        if (string.IsNullOrWhiteSpace(newHash))
+            throw new DomainException("El hash de contraseña no puede estar vacío.");
+
+        PasswordHash = newHash;
+        AddDomainEvent(new DomainEvent("UserPasswordUpdated"));
+    }
+
+    public void Activate() => IsActive = true;
+
+    public void Deactivate() => IsActive = false;
+
+    public void UpdateJobTitle(JobTitle newTitle) => JobTitle = newTitle;
+
+    public bool HasRole(UserRole requiredRole) => Role >= requiredRole; // Admin >= Employee
+
+    public override bool Equals(object? obj)
+    {
+        if (obj is User other)
+            return Id == other.Id && CompanyId == other.CompanyId;
+        return false;
+    }
+
+    public override int GetHashCode() => (Id, CompanyId).GetHashCode();
+
+    public override string ToString() => $"User [Username={Username}, EmployeeNumber={EmployeeNumber}, Role={Role}]";
 }
