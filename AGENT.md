@@ -10,7 +10,7 @@ Este archivo brinda contexto a cualquier agente que trabaje en este proyecto. Co
 **Tecnología:** C# .NET 10  
 **Tipo de app:** Escritorio (Windows Forms)  
 **Base de datos:** SQLite local (sin servidor, sin internet)  
-**Arquitectura:** Clean Architecture (4 capas)  
+**Arquitectura:** Clean Architecture (4 capas) + DDD  
 **Ubicación:** `C:\Users\SystemAncestral\source\repos\InventoryApp`
 
 ---
@@ -20,65 +20,44 @@ Este archivo brinda contexto a cualquier agente que trabaje en este proyecto. Co
 ```
 Inventory.slnx
 └── src/
-    ├── Inventory.Domain/             # Capa de dominio (sin dependencias externas)
-    │   ├── Entities/
-    │   │   ├── Company.cs
-    │   │   ├── User.cs
-    │   │   └── Product.cs
-    │   ├── Exceptions/
-    │   │   ├── EntityNotFoundException.cs
-    │   │   ├── DuplicateEntityException.cs
-    │   │   └── InvalidCredentialsException.cs
-    │   └── Interfaces/
-    │       ├── ICompanyRepository.cs
-    │       ├── IUserRepository.cs
-    │       └── IProductRepository.cs
-    ├── Inventory.Application/        # Casos de uso y contratos de servicio
-    │   ├── DTOs/
-    │   │   ├── LoginRequest.cs
-    │   │   ├── LoginResponse.cs
-    │   │   ├── CompanyDto.cs
-    │   │   ├── UserDto.cs
-    │   │   ├── ProductDto.cs
-    │   │   ├── CreateProductDto.cs
-    │   │   └── UpdateProductDto.cs
-    │   ├── Interfaces/
-    │   │   ├── IAuthService.cs
-    │   │   ├── ICompanyService.cs
-    │   │   ├── IProductService.cs
-    │   │   └── IPasswordHasher.cs
-    │   └── Services/
-    │       ├── AuthService.cs
-    │       ├── CompanyService.cs
-    │       └── ProductService.cs
-    ├── Inventory.Infrastructure/     # Implementaciones técnicas
-    │   ├── Persistence/
-    │   │   ├── AppDbContext.cs         # DbContext con SQLite (EF Core)
-    │   │   ├── CompanyRepository.cs
-    │   │   ├── UserRepository.cs
-    │   │   └── ProductRepository.cs
-    │   └── Services/
-    │       └── BCryptPasswordHasher.cs
-    └── Inventory.Desktop/            # Presentación (Windows Forms)
-        ├── Program.cs                # Punto de entrada
-        ├── Session.cs                # Sesión estática del usuario logueado
-        ├── Di.cs                     # Inyección de dependencias manual
-        ├── DatabaseInitializer.cs    # Seed de datos + EnsureCreated
-        ├── MainShell.cs              # Ventana principal con layout persistente
+    ├── Inventory.Domain/                 # Núcleo: sin dependencias externas
+    │   ├── Common/                       # Entity, DomainException, DomainEvent
+    │   ├── Catalog/                      # Plu, Sku, Money, Quantity
+    │   ├── Entities/                     # Company, User, Product
+    │   ├── Identity/                     # EmployeeNumber, JobTitle, UserRole
+    │   ├── Inventory/                    # StockItem, StockMovement, MovementType
+    │   ├── Exceptions/                   # Excepciones de negocio
+    │   └── Interfaces/                   # IProductRepository, IUserRepository,
+    │                                     # ICompanyRepository, IStockItemRepository
+    ├── Inventory.Application/            # Casos de uso y contratos
+    │   ├── DTOs/                         # ProductDto, CreateProductDto, etc.
+    │   ├── Interfaces/                   # IAuthService, ICompanyService,
+    │   │                                 # IProductService, IPasswordHasher
+    │   └── Services/                     # AuthService, CompanyService, ProductService
+    ├── Inventory.Infrastructure/         # Implementaciones técnicas
+    │   ├── Persistence/                  # AppDbContext, repositorios EF Core
+    │   └── Services/                     # BCryptPasswordHasher
+    └── Inventory.Desktop/                # Presentación (Windows Forms)
+        ├── Program.cs                    # Punto de entrada
+        ├── Session.cs                    # Sesión estática del usuario logueado
+        ├── Di.cs                         # Composition root manual
+        ├── DatabaseInitializer.cs        # Creación de esquema + seed demo
+        ├── MainShell.cs                  # Ventana principal y navegación
         ├── Forms/
-        │   └── Login.cs              # Pantalla de autenticación
+        │   ├── Login.cs                  # Autenticación
+        │   └── ProductEditor.cs          # Alta/edición de productos
         ├── Controls/
-        │   ├── UserProfilePanel.cs   # Tarjeta de perfil (fila: foto + datos)
-        │   ├── TerminalHeader.cs     # Encabezado del terminal de trabajo
-        │   └── BottomNavigation.cs   # Barra inferior de navegación (6 módulos)
+        │   ├── UserProfilePanel.cs       # Tarjeta de perfil + empresa
+        │   ├── TerminalHeader.cs         # Encabezado del terminal
+        │   └── BottomNavigation.cs       # Barra inferior de navegación
         └── Views/
-            ├── IView.cs              # Contrato para vistas dinámicas
-            ├── HomeView.cs           # Módulo: Inicio
-            ├── ProductsView.cs       # Módulo: Productos (conectado a BD)
-            ├── StockView.cs          # Módulo: Stock (placeholder)
-            ├── SalesView.cs          # Módulo: Ventas (placeholder)
-            ├── QueriesView.cs        # Módulo: Consultas (placeholder)
-            └── AdministrationView.cs # Módulo: Administración (placeholder)
+            ├── IView.cs                  # Contrato para vistas dinámicas
+            ├── HomeView.cs               # Dashboard con métricas
+            ├── ProductsView.cs           # CRUD de productos
+            ├── StockView.cs              # Consulta de stock
+            ├── SalesView.cs              # Placeholder
+            ├── QueriesView.cs            # Búsqueda por PLU/SKU
+            └── AdministrationView.cs     # Placeholder (botón deshabilitado)
 ```
 
 ### Flujo de dependencias entre capas
@@ -93,7 +72,15 @@ Desktop  -->  Application  -->  Domain
 - **Domain:** no depende de nada.
 - **Application:** depende solo de Domain.
 - **Infrastructure:** depende de Domain y Application.
-- **Desktop:** depende de Application e Infrastructure.
+- **Desktop:** depende de Application e Infrastructure (solo en `Di.cs`/`Program.cs`).
+
+### Modelo DDD relevante
+
+- `Product` es un agregado de **Catalog**. Usa value objects `Plu`, `Sku`, `Money`.
+- `StockItem` es un agregado de **Inventory**. El stock **no** se edita directo:
+  cambia por `StockMovement` (recepción, venta o ajuste).
+- `User` es un agregado de **Identity**. Usa `EmployeeNumber`, `JobTitle` y `UserRole`.
+- EF Core mapea los value objects mediante `HasConversion` en `AppDbContext`.
 
 ---
 
@@ -103,36 +90,39 @@ Distribución en 4 sectores:
 
 | Sector | Ubicación | Descripción |
 |--------|-----------|-------------|
-| TopBar | Superior | Nombre del sistema "GesCan - Sistema de Gestión Empresarial" + buscador (TextBox, inactivo por ahora) |
-| Panel Perfil | Izquierda | Tarjeta en fila: foto (izq) + nombre, legajo, sucursal y tipo (der). Siempre visible |
-| Terminal | Derecho | Encabezado fijo + área de contenido dinámico (cambia por módulo) |
-| BottomNavigation | Inferior | 6 botones: Inicio, Productos, Stock, Ventas, Consultas, Administración |
+| TopBar | Superior | "GesCan - Sistema de Gestión Empresarial" + buscador de productos |
+| Panel Perfil | Izquierda | Usuario, legajo, puesto, rol y empresa |
+| Terminal | Derecho | Encabezado fijo + contenido dinámico por módulo |
+| BottomNavigation | Inferior | Inicio, Productos, Stock, Ventas, Consultas, Administración |
 
 ### Navegación
 
-- Cada botón de la barra inferior invoca `NavigateTo(moduleKey)` en `MainShell`.
-- `MainShell` instancia la `IView` correspondiente y la coloca en `_contentPanel` (el área dinámica del terminal).
-- El panel de perfil, encabezado y barra inferior **nunca se reconstruyen**; solo cambia el contenido central.
-- Los botones reflejan visualmente el módulo seleccionado (fondo azul, texto blanco).
+- Cada botón invoca `NavigateTo(moduleKey)` en `MainShell`.
+- `MainShell` instancia la `IView` correspondiente y la coloca en `_contentPanel`.
+- El panel de perfil, encabezado y barra inferior no se reconstruyen.
+- El buscador superior filtra Productos y Stock al escribir; con Enter navega a Productos.
+- Administración está visible pero **deshabilitado** (según especificación).
 
 ### Módulos disponibles
 
 | Clave | Vista | Estado |
 |-------|-------|--------|
-| `inicio` | `HomeView` | Placeholder |
-| `productos` | `ProductsView` | Conectado a `ProductService` (datos reales de SQLite) |
-| `stock` | `StockView` | Placeholder |
-| `ventas` | `SalesView` | Placeholder |
-| `consultas` | `QueriesView` | Placeholder |
-| `administracion` | `AdministrationView` | Placeholder |
+| `inicio` | `HomeView` | Dashboard con productos, unidades, stock bajo y valor |
+| `productos` | `ProductsView` | CRUD completo contra SQLite |
+| `stock` | `StockView` | Listado real, búsqueda y filtro de stock bajo |
+| `ventas` | `SalesView` | Placeholder visual |
+| `consultas` | `QueriesView` | Búsqueda por PLU o SKU con ficha del producto |
+| `administracion` | `AdministrationView` | Placeholder; botón deshabilitado |
 
 ---
 
 ## 4. Autenticación y sesión
 
 - Pantalla de login: `Forms/Login.cs`
-- Usuario de prueba pre-cargado: `admin` / `123456`
-- Empresa de prueba: `Demo Company S.A.`
+- Usuarios demo:
+  - `admin` / `123456` — Administrador de Sistemas, legajo 1, rol Admin
+  - `ecano` / `123456` — Programador, legajo 102, rol Employee
+- Empresa demo: `Demo Company S.A.`
 - Contraseñas hasheadas con **BCrypt** (`BCryptPasswordHasher`)
 - Sesión estática en `Session.cs` (`User`, `Company`, `IsLoggedIn`, `Clear()`)
 
@@ -141,9 +131,18 @@ Distribución en 4 sectores:
 ## 5. Base de datos
 
 - Motor: **SQLite** vía Entity Framework Core 10
-- Archivo: `inventory.db` (se crea automáticamente en la carpeta de ejecución del `.exe`)
+- Archivo: `inventory.db` en la carpeta de ejecución del `.exe`
 - Migraciones: NO se usan; se llama `db.Database.EnsureCreated()` en `DatabaseInitializer.cs`
-- Seed inicial: 1 empresa, 1 usuario admin, 5 productos de ejemplo
+- Si se detecta el esquema viejo (sin columna `Plu`), la base demo se recrea automáticamente.
+- Seed inicial:
+  - 1 empresa
+  - 2 usuarios (`admin` y `ecano`)
+  - 12 productos con PLU, SKU, costo, precio, stock mínimo
+  - 12 `StockItem` con movimientos de recepción inicial
+
+### Tablas principales
+
+`Companies`, `Users`, `Products`, `StockItems`, `StockMovements`.
 
 ---
 
@@ -154,25 +153,35 @@ cd "C:\Users\SystemAncestral\source\repos\InventoryApp"
 dotnet run --project src/Inventory.Desktop
 ```
 
-O ejecutar directamente el compilado:
+O ejecutar el compilado:
 
 ```
 src\Inventory.Desktop\bin\Debug\net10.0-windows\Inventory.Desktop.exe
 ```
 
+Compilar:
+
+```powershell
+dotnet build Inventory.slnx
+```
+
 ---
 
-## 7. Cambios recientes (última implementación)
+## 7. Cambios recientes
 
-1. **Panel de perfil (`UserProfilePanel.cs`):** Rediseñado como tarjeta superior en modo fila. Foto a la izquierda (72x72), y a la derecha apilado verticalmente: "Usuario del Sistema" y debajo "Legajo: 80 / Sucursal: 80 / Tipo: [Role]".
-
-2. **Barra superior (`MainShell.cs`):** 
-   - Cambiado "GESCOM" por **"GesCan - Sistema de Gestión Empresarial"**.
-   - Agregado **buscador** (`TextBox` con PlaceholderText "Buscar...") alineado a la derecha. Actualmente sin funcionalidad, listo para futuro.
-
-3. **Arquitectura de navegación:** Implementada con `IView` contract, `MainShell` como layout persistente, y `BottomNavigation` con evento `ModuleSelected`.
-
-4. **Eliminado:** Proyecto de consola (`Inventory.ConsoleApp`) que fue reemplazado por la app de escritorio.
+1. **Migración DDD completada:** se corrigieron namespaces de `Catalog`, se conectaron
+   los value objects con EF Core y se actualizaron Application/Infrastructure/Desktop.
+2. **Productos funcional:** alta, edición y eliminación desde `ProductsView`, con buscador,
+   validaciones y resaltado de stock bajo.
+3. **Stock funcional:** `StockView` muestra stock real, permite buscar por PLU/SKU y
+   filtrar productos con stock bajo.
+4. **Consultas funcional:** `QueriesView` busca por PLU o SKU y muestra ficha completa.
+5. **Inicio con métricas:** `HomeView` muestra productos activos, unidades, stock bajo y
+   valor del inventario al costo.
+6. **UI renovada:** login con branding, tarjetas de perfil/empresa, grillas con estilo
+   consistente, toolbar de acciones y placeholders visuales.
+7. **Limpieza:** se eliminaron formularios y servicios legacy duplicados
+   (`Main`, `ProductList`, `IInventoryService`, `InMemoryInventoryRepository`, `Class1`).
 
 ---
 
@@ -180,9 +189,12 @@ src\Inventory.Desktop\bin\Debug\net10.0-windows\Inventory.Desktop.exe
 
 - El proyecto usa **Windows Forms puro** (no WPF, no XAML, no MVVM). Los controles se crean en código C#.
 - No agregar dependencias NuGet innecesarias sin justificación.
-- Para agregar un nuevo módulo: crear clase que implemente `IView` en `Views/`, registrarla en `_viewFactory` de `MainShell.cs`, y agregar un botón en `BottomNavigation.cs`.
+- Para agregar un nuevo módulo: crear clase que implemente `IView` en `Views/`, registrarla en
+  `_viewFactory` de `MainShell.cs` y agregar un botón en `BottomNavigation.cs`.
 - `Session.User` y `Session.Company` son estáticos; acceder con `Session.User` (no instanciar `Session`).
-- Las vistas heredan de `UserControl` y se alojan dentro del panel `_contentPanel` de `MainShell`.
+- Las vistas heredan de `UserControl` y se alojan dentro de `_contentPanel` de `MainShell`.
 - `Di.cs` contiene las instancias singleton de repositorios y servicios.
-
----
+- El stock se modifica únicamente mediante `StockMovement`; no agregar una propiedad `Stock`
+  editable a `Product`.
+- PLU y SKU son inmutables una vez creado el producto (identificadores de negocio).
+- Las vistas **no** tocan `AppDbContext` ni entidades de dominio: solo DTOs y servicios.

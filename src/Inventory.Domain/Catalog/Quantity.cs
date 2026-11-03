@@ -1,4 +1,5 @@
 using System;
+using Inventory.Domain.Common;
 
 namespace Inventory.Domain.Inventory;
 

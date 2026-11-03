@@ -2,6 +2,8 @@ using System;
 using Inventory.Domain.Common;
 using Inventory.Domain.Identity;
 
+namespace Inventory.Domain.Entities;
+
 // [DDD] Agregado raíz del bounded context Identity.
 // Representa un usuario del sistema, perteneciente a una empresa.
 // Invariantes: Legajo único por empresa, hash de contraseña obligatorio,
@@ -11,9 +13,12 @@ public sealed class User : Entity
     // Datos de la empresa
     public int CompanyId { get; private set; }
 
+    // Navegación usada por EF Core (no se modifica desde la UI)
+    public Company? Company { get; private set; }
+
     // Identificación personal
-    public EmployeeNumber EmployeeNumber { get; private set; }
-    public JobTitle JobTitle { get; private set; }
+    public EmployeeNumber EmployeeNumber { get; private set; } = null!;
+    public JobTitle JobTitle { get; private set; } = null!;
 
     // Autenticación
     public string Username { get; private set; } = string.Empty;
@@ -23,8 +28,8 @@ public sealed class User : Entity
     public UserRole Role { get; private set; }
     public bool IsActive { get; private set; }
 
-    // Navegación
-    // Company navigation property - will be resolved via CompanyId
+    // Constructor vacío requerido por EF Core.
+    private User() { }
 
     // Constructor factory
     public static User Create(int companyId, EmployeeNumber employeeNumber, JobTitle jobTitle,
@@ -42,7 +47,7 @@ public sealed class User : Entity
             CompanyId = companyId,
             EmployeeNumber = employeeNumber,
             JobTitle = jobTitle,
-            Username = username,
+            Username = username.Trim(),
             PasswordHash = passwordHash,
             Role = role,
             IsActive = isActive

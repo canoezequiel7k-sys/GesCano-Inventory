@@ -40,6 +40,8 @@ public class AuthService : IAuthService
             user.Username,
             company.Id,
             company.Name,
-            user.Role);
+            user.Role.ToString(),
+            user.EmployeeNumber.Value,
+            user.JobTitle.Value);
     }
 }

@@ -3,6 +3,8 @@ using Inventory.Domain.Common;
 using Inventory.Domain.Catalog;
 using Inventory.Domain.Inventory;
 
+namespace Inventory.Domain.Entities;
+
 // [DDD] Agregado raíz del bounded context Catalog.
 // Representa un producto que la empresa compra y/o vende.
 // Tiene invariantes: PLU y SKU únicos por empresa, descripción obligatoria,
@@ -12,17 +14,20 @@ public sealed class Product : Entity
     // Data de la empresa
     public int CompanyId { get; private set; }
 
+    // Navegación usada por EF Core (no se modifica desde la UI)
+    public Company? Company { get; private set; }
+
     // Value objects (inmutables)
-    public Plu Plu { get; private set; }
-    public Sku Sku { get; private set; }
+    public Plu Plu { get; private set; } = null!;
+    public Sku Sku { get; private set; } = null!;
 
     // Descripción y categoría
-    public string Description { get; private set; }
-    public string Category { get; private set; }
+    public string Description { get; private set; } = string.Empty;
+    public string Category { get; private set; } = string.Empty;
 
     // Precios (value object Money)
-    public Money UnitCost { get; private set; }
-    public Money UnitPrice { get; private set; }
+    public Money UnitCost { get; private set; } = null!;
+    public Money UnitPrice { get; private set; } = null!;
 
     // Configuración de stock
     public int MinimumStock { get; private set; } // Stock mínimo para alertas
@@ -30,8 +35,8 @@ public sealed class Product : Entity
     // Referencia al stock item (agregado separada pero relacionado)
     public int? StockItemId { get; private set; }
 
-    // Navegación (no mapeadas directamente en EF a menos que sean FK)
-    // public StockItem Stock { get; private set; } ← sería navigation property
+    // Constructor vacío requerido por EF Core.
+    private Product() { }
 
     // Constructor factory - encapsula la creación con validaciones
     public static Product Create(int companyId, Plu plu, Sku sku, string description,
@@ -62,8 +67,8 @@ public sealed class Product : Entity
             CompanyId = companyId,
             Plu = plu,
             Sku = sku,
-            Description = description,
-            Category = category,
+            Description = description.Trim(),
+            Category = category.Trim(),
             UnitCost = unitCost,
             UnitPrice = unitPrice,
             MinimumStock = minimumStock,
@@ -81,7 +86,7 @@ public sealed class Product : Entity
         if (string.IsNullOrWhiteSpace(newDescription))
             throw new DomainException("La descripción no puede ser vacía.");
 
-        Description = newDescription;
+        Description = newDescription.Trim();
         AddDomainEvent(new DomainEvent("ProductDescriptionUpdated"));
     }
 
@@ -90,7 +95,7 @@ public sealed class Product : Entity
         if (string.IsNullOrWhiteSpace(newCategory))
             throw new DomainException("La categoría no puede ser vacía.");
 
-        Category = newCategory;
+        Category = newCategory.Trim();
         AddDomainEvent(new DomainEvent("ProductCategoryUpdated"));
     }
 
@@ -118,6 +123,15 @@ public sealed class Product : Entity
         MinimumStock = newMinimum;
         AddDomainEvent(new DomainEvent("ProductMinimumStockUpdated"));
     }
+
+    public void LinkStockItem(int stockItemId)
+    {
+        StockItemId = stockItemId;
+    }
+
+    // [NEGOCIO] Un producto está bajo stock cuando la cantidad disponible
+    // es menor o igual al mínimo configurado por la empresa.
+    public bool IsLowStock(int currentStock) => currentStock <= MinimumStock;
 
     // Operadores de comparación
     public bool SamePluAs(Product other) => Plu.Value == other.Plu.Value;

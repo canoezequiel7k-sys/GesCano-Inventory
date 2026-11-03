@@ -1,6 +1,8 @@
 using System;
 using Inventory.Domain.Common;
 
+namespace Inventory.Domain.Catalog;
+
 // Value object que representa un monto de dinero.
 public sealed class Money
 {
@@ -8,7 +10,7 @@ public sealed class Money
     private const int DecimalPlaces = 2;
 
     /// <summary>
-    /// CAPA: Inventory. Value object Moneda/monto para precios del producto.
+    /// CAPA: Domain. Value object Moneda/monto para precios del producto.
     /// POR QUÉ ACÁ: Garantiza que todos los montos del producto sean
     /// consistentes con 2 decimales y nunca negativos, evitando errores
     /// de cálculo en ventas y reportes.
@@ -30,9 +32,6 @@ public sealed class Money
 
         // Redondear a 2 decimales (formato monetario estándar)
         var rounded = Math.Round(amount, DecimalPlaces, MidpointRounding.AwayFromZero);
-
-        if (rounded == 0 && amount != 0)
-            throw new DomainException("El monto no puede ser cero a menos que sea exactamente 0.");
 
         return new Money(rounded);
     }

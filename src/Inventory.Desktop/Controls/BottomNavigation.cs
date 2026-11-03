@@ -38,16 +38,18 @@ public partial class BottomNavigation : UserControl
     {
         var modules = new[]
         {
-            ("inicio", "INICIO"),
-            ("productos", "PRODUCTOS"),
-            ("stock", "STOCK"),
-            ("ventas", "VENTAS"),
-            ("consultas", "CONSULTAS"),
-            ("administracion", "ADMINISTRACIÓN")
+            ("inicio", "INICIO", true),
+            ("productos", "PRODUCTOS", true),
+            ("stock", "STOCK", true),
+            ("ventas", "VENTAS", true),
+            ("consultas", "CONSULTAS", true),
+            ("administracion", "ADMINISTRACIÓN", false)
         };
 
+        var toolTip = new ToolTip();
+
         int i = 0;
-        foreach (var (key, text) in modules)
+        foreach (var (key, text, available) in modules)
         {
             var btn = new Button
             {
@@ -57,12 +59,17 @@ public partial class BottomNavigation : UserControl
                 ForeColor = Color.FromArgb(128, 128, 128),
                 BackColor = Color.Transparent,
                 FlatStyle = FlatStyle.Flat,
-                Cursor = Cursors.Hand,
+                Cursor = available ? Cursors.Hand : Cursors.Default,
+                Enabled = available,
                 Tag = key
             };
             btn.FlatAppearance.BorderSize = 0;
             btn.FlatAppearance.MouseOverBackColor = Color.FromArgb(221, 226, 230);
-            btn.Click += (_, _) => OnModuleClicked(key);
+
+            if (available)
+                btn.Click += (_, _) => OnModuleClicked(key);
+            else
+                toolTip.SetToolTip(btn, "No disponible por ahora");
 
             _buttons[key] = btn;
             _layout.Controls.Add(btn, i, 0);
@@ -79,10 +86,24 @@ public partial class BottomNavigation : UserControl
         ModuleSelected?.Invoke(key);
     }
 
+    public void SetSelected(string key)
+    {
+        _selectedModule = key;
+        UpdateButtonStates();
+    }
+
     private void UpdateButtonStates()
     {
         foreach (var (key, btn) in _buttons)
         {
+            if (!btn.Enabled)
+            {
+                btn.BackColor = Color.Transparent;
+                btn.ForeColor = Color.FromArgb(189, 195, 199);
+                btn.Font = new Font("Segoe UI", 9F, FontStyle.Regular);
+                continue;
+            }
+
             bool isSelected = string.Equals(key, _selectedModule, StringComparison.OrdinalIgnoreCase);
             btn.BackColor = isSelected ? Color.FromArgb(52, 152, 219) : Color.Transparent;
             btn.ForeColor = isSelected ? Color.White : Color.FromArgb(128, 128, 128);

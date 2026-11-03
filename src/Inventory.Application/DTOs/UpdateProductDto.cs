@@ -1,8 +1,8 @@
 namespace Inventory.Application.DTOs;
 
 public record UpdateProductDto(
-    string Sku,
     string Name,
     string Category,
+    decimal Cost,
     decimal Price,
-    int Stock);
+    int MinimumStock);

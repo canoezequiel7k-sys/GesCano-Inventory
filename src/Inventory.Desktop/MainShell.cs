@@ -13,13 +13,14 @@ public partial class MainShell : Form
     private readonly Panel _contentPanel = new();
     private readonly TableLayoutPanel _mainLayout = new();
     private readonly TableLayoutPanel _centerLayout = new();
+    private readonly TextBox _txtBuscar = new();
 
     private IView? _currentView;
     private readonly Dictionary<string, Func<IView>> _viewFactory = new(StringComparer.OrdinalIgnoreCase);
 
     public MainShell()
     {
-        Text = "Sistema de Gestión Empresarial - GESCOM";
+        Text = "GesCan - Sistema de Gestión Empresarial";
         Size = new Size(1100, 700);
         MinimumSize = new Size(900, 600);
         StartPosition = FormStartPosition.CenterScreen;
@@ -73,16 +74,13 @@ public partial class MainShell : Form
             Dock = DockStyle.Fill
         };
 
-        var txtBuscar = new TextBox
-        {
-            Width = 220,
-            PlaceholderText = "Buscar...",
-            Font = new Font("Segoe UI", 9F),
-            Anchor = AnchorStyles.Right | AnchorStyles.Top
-        };
+        _txtBuscar.Width = 240;
+        _txtBuscar.PlaceholderText = "Buscar producto por PLU, SKU o nombre...";
+        _txtBuscar.Font = new Font("Segoe UI", 9.5F);
+        _txtBuscar.Anchor = AnchorStyles.Right | AnchorStyles.Top;
 
         topLayout.Controls.Add(lblSystem, 0, 0);
-        topLayout.Controls.Add(txtBuscar, 1, 0);
+        topLayout.Controls.Add(_txtBuscar, 1, 0);
         topBar.Controls.Add(topLayout);
 
         // ===== CENTER: PERFIL | TERMINAL =====
@@ -146,6 +144,28 @@ public partial class MainShell : Form
     private void WireEvents()
     {
         _bottomNav.ModuleSelected += NavigateTo;
+
+        _txtBuscar.TextChanged += (_, _) =>
+        {
+            if (_currentView is ProductsView productsView)
+                productsView.SetSearch(_txtBuscar.Text);
+            else if (_currentView is StockView stockView)
+                stockView.SetSearch(_txtBuscar.Text);
+        };
+
+        _txtBuscar.KeyDown += (_, e) =>
+        {
+            if (e.KeyCode != Keys.Enter)
+                return;
+
+            e.SuppressKeyPress = true;
+
+            if (_currentView is not ProductsView)
+                NavigateTo("productos");
+
+            if (_currentView is ProductsView productsView)
+                productsView.SetSearch(_txtBuscar.Text);
+        };
     }
 
     private void NavigateTo(string moduleKey)
@@ -165,12 +185,19 @@ public partial class MainShell : Form
         var next = factory();
         _currentView = next;
         _terminalHeader.SetModule(next.Title);
+        _bottomNav.SetSelected(moduleKey);
 
         if (next is Control nextCtrl)
         {
             nextCtrl.Dock = DockStyle.Fill;
             _contentPanel.Controls.Add(nextCtrl);
         }
+
+        if (next is ProductsView productsView && !string.IsNullOrWhiteSpace(_txtBuscar.Text))
+            productsView.SetSearch(_txtBuscar.Text);
+        else if (next is StockView stockView && !string.IsNullOrWhiteSpace(_txtBuscar.Text))
+            stockView.SetSearch(_txtBuscar.Text);
+
         next.Activate();
     }
 }

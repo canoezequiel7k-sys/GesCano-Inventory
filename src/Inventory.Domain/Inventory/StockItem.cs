@@ -19,7 +19,7 @@ public sealed class StockItem
     public int ConcurrencyToken { get; private set; } // Token optimista para concurrencia
 
     // Estado
-    public Quantity CurrentStock { get; private set; }
+    public Quantity CurrentStock { get; private set; } = null!;
     private readonly List<StockMovement> _movements = new(); // Histórico de movimientos
 
     // Eventos de dominio
@@ -50,12 +50,17 @@ public sealed class StockItem
     // Método para agregar un movimiento (llamado dentro de Unit of Work)
     public void AddMovement(StockMovement movement)
     {
+        // [NEGOCIO] Las ventas restan stock aunque la cantidad se registre en positivo.
+        var signedQuantity = movement.Type == MovementType.Sale
+            ? -movement.Quantity.Value
+            : movement.Quantity.Value;
+
         // Validación de invariante: saldo nunca puede quedar negativo después del movimiento
-        if (CurrentStock.Value + movement.Quantity.Value < 0)
-            throw new DomainException($"No se puede realizar este movimiento. Stock actual: {CurrentStock}, movimiento: {movement.Quantity.Value} resultaría en stock negativo.");
+        if (CurrentStock.Value + signedQuantity < 0)
+            throw new DomainException($"No se puede realizar este movimiento. Stock actual: {CurrentStock}, movimiento: {signedQuantity} resultaría en stock negativo.");
 
         _movements.Add(movement);
-        CurrentStock = Quantity.Create(CurrentStock.Value + movement.Quantity.Value); // Recreate with new value
+        CurrentStock = Quantity.Create(CurrentStock.Value + signedQuantity);
         ConcurrencyToken++;
 
         // Agregar evento según tipo
@@ -79,6 +84,8 @@ public sealed class StockItem
         }
         return total;
     }
+
+    private void AddDomainEvent(IDomainEvent domainEvent) => _domainEvents.Add(domainEvent);
 
     // Limpiar eventos después de que el Unit of Work los procese
     internal void ClearEvents() => _domainEvents.Clear();

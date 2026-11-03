@@ -5,4 +5,6 @@ public record LoginResponse(
     string Username,
     int CompanyId,
     string CompanyName,
-    string Role);
+    string Role,
+    int EmployeeNumber,
+    string JobTitle);

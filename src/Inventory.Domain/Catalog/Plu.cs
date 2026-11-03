@@ -2,13 +2,14 @@ using System;
 using System.Text.RegularExpressions;
 using Inventory.Domain.Common;
 
+namespace Inventory.Domain.Catalog;
+
 // [DDD] Value object que representa un Código PLU (Price Look-Up).
 // Se usa para la venta rápida de productos (tipo balanza/caja).
 // Validaciones:
 // - No vacío después del trim
 // - Solo dígitos
 // - Longitud entre 1 y 8 caracteres
-// - Se normaliza a mayúsculas (aunque son dígitos, para consistencia)
 public sealed class Plu
 {
     private readonly string _value;
@@ -43,10 +44,7 @@ public sealed class Plu
         if (!_digitOnly.IsMatch(trimmed))
             throw new DomainException("El PLU debe contener solo dígitos numéricos.");
 
-        // Normalizar a mayúsculas (aunque son dígitos, mantiene consistencia)
-        var normalized = trimmed;
-
-        return new Plu(normalized);
+        return new Plu(trimmed);
     }
 
     public static implicit operator string(Plu plu) => plu._value;

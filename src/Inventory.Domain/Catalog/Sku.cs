@@ -2,6 +2,8 @@ using System;
 using System.Text.RegularExpressions;
 using Inventory.Domain.Common;
 
+namespace Inventory.Domain.Catalog;
+
 // [DDD] Value object que representa un SKU (Stock Keeping Unit).
 // Código interno de inventario, único por empresa.
 // Validaciones:

@@ -1,6 +1,7 @@
 using System;
 using Inventory.Domain.Common;
 using Inventory.Domain.Catalog;
+using Inventory.Domain.Inventory;
 
 // [DDD] Value object inmutable que registra un movimiento de stock.
 // Cada movimiento es un registro de entrada/salida con propósito, usuario y fecha.
@@ -12,7 +13,7 @@ public sealed class StockMovement : Entity
     public int CompanyId { get; private set; }
     public int ProductId { get; private set; }
     public MovementType Type { get; private set; } // Receipt, Sale, Adjustment
-    public Quantity Quantity { get; private set; } // Cantidad con signo (entrada positiva, salida negativa)
+    public Quantity Quantity { get; private set; } = null!; // Cantidad del movimiento (las ventas restan en StockItem)
     public DateTime OccurredAt { get; private set; }
     public int UserId { get; private set; } // Quien realizó el movimiento
     public string? Reference { get; private set; } // ID de venta, remito, etc.

@@ -16,42 +16,96 @@ public partial class AdministrationView : UserControl, IView
     {
         Dock = DockStyle.Fill;
         BackColor = Color.White;
-        Padding = new Padding(20);
+        Padding = new Padding(24, 18, 24, 18);
 
-        var layout = new TableLayoutPanel
+        var root = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 2
         };
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+        root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 58F));
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
 
-        var lblTitle = new Label
+        var header = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = new Padding(0)
+        };
+        header.RowStyles.Add(new RowStyle(SizeType.Percent, 60F));
+        header.RowStyles.Add(new RowStyle(SizeType.Percent, 40F));
+
+        header.Controls.Add(new Label
         {
             Text = "ADMINISTRACIÓN",
             Font = new Font("Segoe UI", 16F, FontStyle.Bold),
-            ForeColor = Color.FromArgb(52, 73, 94),
-            TextAlign = ContentAlignment.MiddleLeft,
-            Dock = DockStyle.Fill,
-            Height = 40
-        };
+            ForeColor = Color.FromArgb(44, 62, 80),
+            TextAlign = ContentAlignment.BottomLeft,
+            Dock = DockStyle.Fill
+        }, 0, 0);
 
-        var lblSub = new Label
+        header.Controls.Add(new Label
         {
-            Text = "Módulo de administración de usuarios, empresas y configuración. Funcionalidad en desarrollo.",
-            Font = new Font("Segoe UI", 10F),
-            ForeColor = Color.FromArgb(128, 128, 128),
-            TextAlign = ContentAlignment.MiddleLeft,
+            Text = "Usuarios, empresas y configuración general del sistema.",
+            Font = new Font("Segoe UI", 9.5F),
+            ForeColor = Color.FromArgb(127, 140, 141),
+            TextAlign = ContentAlignment.TopLeft,
+            Dock = DockStyle.Fill
+        }, 0, 1);
+
+        var card = new Panel
+        {
             Dock = DockStyle.Fill,
-            Height = 60
+            BackColor = Color.FromArgb(248, 250, 252),
+            Padding = new Padding(28)
         };
 
-        layout.Controls.Add(lblTitle, 0, 0);
-        layout.Controls.Add(lblSub, 0, 1);
+        var cardLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 3
+        };
+        cardLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 45F));
+        cardLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 48F));
+        cardLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 55F));
 
-        Controls.Add(layout);
+        cardLayout.Controls.Add(new Label
+        {
+            Text = "🔒",
+            Font = new Font("Segoe UI Emoji", 34F),
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.BottomCenter
+        }, 0, 0);
+
+        cardLayout.Controls.Add(new Label
+        {
+            Text = "No disponible por ahora",
+            Font = new Font("Segoe UI", 15F, FontStyle.Bold),
+            ForeColor = Color.FromArgb(44, 62, 80),
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleCenter
+        }, 0, 1);
+
+        cardLayout.Controls.Add(new Label
+        {
+            Text = "Este módulo se habilitará en una próxima versión. La barra inferior\n" +
+                   "lo muestra deshabilitado para dejar claro que todavía no está listo.",
+            Font = new Font("Segoe UI", 9.5F),
+            ForeColor = Color.FromArgb(127, 140, 141),
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.TopCenter
+        }, 0, 2);
+
+        card.Controls.Add(cardLayout);
+
+        root.Controls.Add(header, 0, 0);
+        root.Controls.Add(card, 0, 1);
+
+        Controls.Add(root);
     }
 
     public void Activate() => Visible = true;
