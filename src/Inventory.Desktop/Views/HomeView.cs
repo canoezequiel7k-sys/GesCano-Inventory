@@ -25,17 +25,23 @@ public partial class HomeView : UserControl, IView
         Dock = DockStyle.Fill;
         BackColor = Color.White;
         Padding = new Padding(24, 18, 24, 18);
+        AutoScroll = true;
 
+        // El contenido usa filas con altura fija y AutoSize para que nada se
+        // comprima cuando la ventana es chica; si no entra, aparece scroll.
         var root = new TableLayoutPanel
         {
-            Dock = DockStyle.Fill,
+            Dock = DockStyle.Top,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             ColumnCount = 1,
-            RowCount = 3
+            RowCount = 3,
+            Margin = new Padding(0)
         };
         root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 62F));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 54F));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 248F));
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 152F));
 
         // Encabezado
         var header = new TableLayoutPanel
@@ -79,13 +85,13 @@ public partial class HomeView : UserControl, IView
         cards.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
         cards.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
 
-        cards.Controls.Add(CreateCard("PRODUCTOS ACTIVOS", "Cantidad de productos en el catálogo.",
+        cards.Controls.Add(CreateCard("PRODUCTOS ACTIVOS", "Productos en el catálogo.",
             Color.FromArgb(52, 152, 219), out _lblProductsValue), 0, 0);
-        cards.Controls.Add(CreateCard("UNIDADES EN STOCK", "Suma de todas las unidades disponibles.",
+        cards.Controls.Add(CreateCard("UNIDADES EN STOCK", "Unidades disponibles.",
             Color.FromArgb(46, 204, 113), out _lblUnitsValue), 1, 0);
-        cards.Controls.Add(CreateCard("STOCK BAJO", "Productos en o por debajo del mínimo.",
+        cards.Controls.Add(CreateCard("STOCK BAJO", "En o por debajo del mínimo.",
             Color.FromArgb(231, 76, 60), out _lblLowStockValue), 0, 1);
-        cards.Controls.Add(CreateCard("VALOR DEL INVENTARIO", "Valorizado al costo unitario.",
+        cards.Controls.Add(CreateCard("VALOR DEL INVENTARIO", "Valorizado al costo.",
             Color.FromArgb(155, 89, 182), out _lblValueValue), 1, 1);
 
         // Bienvenida
@@ -107,8 +113,8 @@ public partial class HomeView : UserControl, IView
 
         var user = Session.User?.Username ?? "usuario";
         welcomeText.Text = $"Bienvenido/a, {user}.\n\n" +
-            "Desde la barra inferior podés gestionar Productos, consultar Stock, revisar Ventas " +
-            "y buscar información por PLU o SKU en Consultas.";
+            "Gestioná Productos, consultá Stock y revisá Ventas desde la barra inferior. " +
+            "También podés buscar información por PLU o SKU en Consultas.";
 
         welcome.Controls.Add(welcomeText);
 
@@ -143,9 +149,9 @@ public partial class HomeView : UserControl, IView
             RowCount = 3,
             Padding = new Padding(12, 0, 0, 0)
         };
-        content.RowStyles.Add(new RowStyle(SizeType.Absolute, 24F));
-        content.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-        content.RowStyles.Add(new RowStyle(SizeType.Absolute, 26F));
+        content.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
+        content.RowStyles.Add(new RowStyle(SizeType.Absolute, 46F));
+        content.RowStyles.Add(new RowStyle(SizeType.Absolute, 18F));
 
         content.Controls.Add(new Label
         {
