@@ -32,6 +32,9 @@ public sealed class Product : Entity
     // Configuración de stock
     public int MinimumStock { get; private set; } // Stock mínimo para alertas
 
+    // Imagen del producto (ruta relativa dentro de la carpeta de la app)
+    public string? ImagePath { get; private set; }
+
     // Referencia al stock item (agregado separada pero relacionado)
     public int? StockItemId { get; private set; }
 
@@ -40,7 +43,8 @@ public sealed class Product : Entity
 
     // Constructor factory - encapsula la creación con validaciones
     public static Product Create(int companyId, Plu plu, Sku sku, string description,
-        string category, Money unitCost, Money unitPrice, int minimumStock)
+        string category, Money unitCost, Money unitPrice, int minimumStock,
+        string? imagePath = null)
     {
         // Invariantes de negocio
         if (string.IsNullOrWhiteSpace(description))
@@ -72,6 +76,7 @@ public sealed class Product : Entity
             UnitCost = unitCost,
             UnitPrice = unitPrice,
             MinimumStock = minimumStock,
+            ImagePath = string.IsNullOrWhiteSpace(imagePath) ? null : imagePath.Trim(),
             StockItemId = null // Se crea separado
         };
 
@@ -127,6 +132,12 @@ public sealed class Product : Entity
     public void LinkStockItem(int stockItemId)
     {
         StockItemId = stockItemId;
+    }
+
+    public void UpdateImage(string? imagePath)
+    {
+        ImagePath = string.IsNullOrWhiteSpace(imagePath) ? null : imagePath.Trim();
+        AddDomainEvent(new DomainEvent("ProductImageUpdated"));
     }
 
     // [NEGOCIO] Un producto está bajo stock cuando la cantidad disponible

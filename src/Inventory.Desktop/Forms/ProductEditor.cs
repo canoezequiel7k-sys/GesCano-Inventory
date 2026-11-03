@@ -1,13 +1,15 @@
 using System.Drawing;
 using System.Windows.Forms;
 using Inventory.Application.DTOs;
+using Inventory.Desktop.Imaging;
 
 namespace Inventory.Desktop.Forms;
 
+// Alta de productos nuevos. La edición de productos existentes se reemplazó
+// por ProductPreview (solo lectura).
 public partial class ProductEditor : Form
 {
     private readonly int _companyId;
-    private readonly ProductDto? _editing;
     private TextBox txtPlu = null!;
     private TextBox txtSku = null!;
     private TextBox txtName = null!;
@@ -16,20 +18,21 @@ public partial class ProductEditor : Form
     private NumericUpDown numPrice = null!;
     private NumericUpDown numMinimumStock = null!;
     private NumericUpDown numStock = null!;
+    private PictureBox _imgPreview = null!;
+    private string? _imagePath;
+    private Image? _image;
 
-    public ProductEditor(int companyId, ProductDto? dto = null)
+    public ProductEditor(int companyId)
     {
         _companyId = companyId;
-        _editing = dto;
         InitializeComponent();
-        if (_editing is not null)
-            Fill();
+        RefreshImagePreview();
     }
 
     private void InitializeComponent()
     {
-        Text = _editing is null ? "Nuevo producto" : "Editar producto";
-        Size = new Size(480, 500);
+        Text = "Nuevo producto";
+        ClientSize = new Size(540, 640);
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
@@ -56,7 +59,7 @@ public partial class ProductEditor : Form
 
         var lblHeader = new Label
         {
-            Text = _editing is null ? "Nuevo producto" : "Editar producto",
+            Text = "Nuevo producto",
             Font = new Font("Segoe UI", 15F, FontStyle.Bold),
             ForeColor = Color.White,
             Dock = DockStyle.Fill,
@@ -68,14 +71,15 @@ public partial class ProductEditor : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 2,
-            RowCount = 9,
-            Padding = new Padding(28, 20, 28, 20)
+            RowCount = 10,
+            Padding = new Padding(28, 18, 28, 18)
         };
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 125F));
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
 
         for (int i = 0; i < 8; i++)
             body.RowStyles.Add(new RowStyle(SizeType.Absolute, 42F));
+        body.RowStyles.Add(new RowStyle(SizeType.Absolute, 118F));
         body.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
 
         txtPlu = CreateTextBox();
@@ -94,17 +98,84 @@ public partial class ProductEditor : Form
         AddRow(body, 4, "Costo unitario", numCost);
         AddRow(body, 5, "Precio de venta", numPrice);
         AddRow(body, 6, "Stock mínimo", numMinimumStock);
-        AddRow(body, 7, _editing is null ? "Stock inicial" : "Stock actual", numStock);
+        AddRow(body, 7, "Stock inicial", numStock);
 
-        if (_editing is not null)
+        // Imagen del producto
+        body.Controls.Add(new Label
         {
-            txtPlu.Enabled = false;
-            txtSku.Enabled = false;
-            numStock.Enabled = false;
-            txtPlu.BackColor = Color.FromArgb(245, 245, 245);
-            txtSku.BackColor = Color.FromArgb(245, 245, 245);
-            numStock.BackColor = Color.FromArgb(245, 245, 245);
-        }
+            Text = "Imagen",
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
+            ForeColor = Color.FromArgb(52, 73, 94)
+        }, 0, 8);
+
+        var imagePanel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 1,
+            Margin = new Padding(0, 6, 0, 6)
+        };
+        imagePanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 106F));
+        imagePanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+
+        _imgPreview = new PictureBox
+        {
+            Dock = DockStyle.Fill,
+            SizeMode = PictureBoxSizeMode.Zoom,
+            BackColor = Color.FromArgb(245, 247, 250),
+            BorderStyle = BorderStyle.FixedSingle,
+            Margin = new Padding(0, 0, 12, 0)
+        };
+
+        var imageButtons = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.TopDown,
+            WrapContents = false,
+            Margin = new Padding(0)
+        };
+
+        var btnPick = new Button
+        {
+            Text = "Elegir imagen...",
+            Width = 158,
+            Height = 34,
+            BackColor = Color.FromArgb(52, 152, 219),
+            ForeColor = Color.White,
+            FlatStyle = FlatStyle.Flat,
+            Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+            Cursor = Cursors.Hand,
+            Margin = new Padding(0, 2, 0, 6)
+        };
+        btnPick.FlatAppearance.BorderSize = 0;
+        btnPick.Click += (_, _) => PickImage();
+
+        var btnClear = new Button
+        {
+            Text = "Quitar imagen",
+            Width = 158,
+            Height = 32,
+            BackColor = Color.FromArgb(236, 240, 241),
+            ForeColor = Color.FromArgb(52, 73, 94),
+            FlatStyle = FlatStyle.Flat,
+            Font = new Font("Segoe UI", 9F),
+            Cursor = Cursors.Hand,
+            Margin = new Padding(0)
+        };
+        btnClear.FlatAppearance.BorderColor = Color.FromArgb(210, 218, 222);
+        btnClear.Click += (_, _) =>
+        {
+            _imagePath = null;
+            RefreshImagePreview();
+        };
+
+        imageButtons.Controls.Add(btnPick);
+        imageButtons.Controls.Add(btnClear);
+
+        imagePanel.Controls.Add(_imgPreview, 0, 0);
+        imagePanel.Controls.Add(imageButtons, 1, 0);
+        body.Controls.Add(imagePanel, 1, 8);
 
         var buttons = new FlowLayoutPanel
         {
@@ -143,7 +214,7 @@ public partial class ProductEditor : Form
         buttons.Controls.Add(btnSave);
         buttons.Controls.Add(btnCancel);
 
-        body.Controls.Add(buttons, 0, 8);
+        body.Controls.Add(buttons, 0, 9);
         body.SetColumnSpan(buttons, 2);
 
         root.Controls.Add(header, 0, 0);
@@ -194,16 +265,36 @@ public partial class ProductEditor : Form
         Margin = new Padding(0, 7, 0, 7)
     };
 
-    private void Fill()
+    private void PickImage()
     {
-        txtPlu.Text = _editing!.Plu;
-        txtSku.Text = _editing.Sku;
-        txtName.Text = _editing.Name;
-        txtCategory.Text = _editing.Category;
-        numCost.Value = _editing.Cost;
-        numPrice.Value = _editing.Price;
-        numMinimumStock.Value = _editing.MinimumStock;
-        numStock.Value = _editing.Stock;
+        using var dialog = new OpenFileDialog
+        {
+            Title = "Elegir imagen del producto",
+            Filter = "Imágenes|*.png;*.jpg;*.jpeg;*.bmp;*.gif|Todos los archivos|*.*"
+        };
+
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+            return;
+
+        var saved = ProductImages.Save(dialog.FileName);
+        if (saved is null)
+        {
+            MessageBox.Show("No se pudo guardar la imagen seleccionada.", "Imagen",
+                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        _imagePath = saved;
+        RefreshImagePreview();
+    }
+
+    private void RefreshImagePreview()
+    {
+        _image?.Dispose();
+        _image = ProductImages.Load(_imagePath)
+            ?? ProductImages.CreatePlaceholder("?", "Sin imagen", 240, 240);
+
+        _imgPreview.Image = _image;
     }
 
     private void Save()
@@ -222,27 +313,16 @@ public partial class ProductEditor : Form
                 return;
             }
 
-            if (_editing is null)
-            {
-                Di.ProductService.Create(_companyId, new CreateProductDto(
-                    plu,
-                    sku,
-                    name,
-                    category,
-                    numCost.Value,
-                    numPrice.Value,
-                    (int)numMinimumStock.Value,
-                    (int)numStock.Value));
-            }
-            else
-            {
-                Di.ProductService.Update(_editing.Id, _companyId, new UpdateProductDto(
-                    name,
-                    category,
-                    numCost.Value,
-                    numPrice.Value,
-                    (int)numMinimumStock.Value));
-            }
+            Di.ProductService.Create(_companyId, new CreateProductDto(
+                plu,
+                sku,
+                name,
+                category,
+                numCost.Value,
+                numPrice.Value,
+                (int)numMinimumStock.Value,
+                (int)numStock.Value,
+                _imagePath));
 
             DialogResult = DialogResult.OK;
             Close();
@@ -251,5 +331,13 @@ public partial class ProductEditor : Form
         {
             MessageBox.Show(ex.Message, "No se pudo guardar", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+            _image?.Dispose();
+
+        base.Dispose(disposing);
     }
 }

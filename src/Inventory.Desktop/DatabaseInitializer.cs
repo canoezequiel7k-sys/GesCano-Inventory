@@ -1,5 +1,6 @@
 using System.Data;
 using Inventory.Application.Interfaces;
+using Inventory.Desktop.Seeding;
 using Inventory.Domain.Catalog;
 using Inventory.Domain.Entities;
 using Inventory.Domain.Identity;
@@ -11,6 +12,21 @@ namespace Inventory.Desktop;
 
 public static class DatabaseInitializer
 {
+    private static readonly Dictionary<string, string> CategoryCodes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Bebidas"] = "BEB",
+        ["Cereales y desayuno"] = "CER",
+        ["Golosinas"] = "GOL",
+        ["Panadería"] = "PAN",
+        ["Almacén"] = "ALM",
+        ["Lácteos"] = "LAC",
+        ["Limpieza"] = "LIM",
+        ["Perfumería"] = "PER",
+        ["Congelados"] = "CON",
+        ["Carnes"] = "CAR",
+        ["Frutas y Verduras"] = "FRU"
+    };
+
     public static void EnsureSeed(AppDbContext db, IPasswordHasher hasher)
     {
         EnsureCompatibleSchema(db);
@@ -44,60 +60,90 @@ public static class DatabaseInitializer
         db.Users.AddRange(admin, ezequiel);
         db.SaveChanges();
 
-        var products = new (string Plu, string Sku, string Description, string Category,
-            decimal Cost, decimal Price, int MinimumStock, int Stock)[]
-        {
-            ("1001", "TEC-001", "Laptop HP ProBook 450", "Tecnología", 950m, 1200m, 3, 8),
-            ("1002", "TEC-002", "Monitor LED 27\" Full HD", "Tecnología", 320m, 450m, 4, 12),
-            ("1003", "TEC-003", "Teclado mecánico RGB", "Tecnología", 55m, 89.90m, 6, 25),
-            ("1004", "TEC-004", "Mouse inalámbrico ergonómico", "Tecnología", 18m, 32.50m, 10, 40),
-            ("2001", "MUE-001", "Silla ergonómica con apoyabrazos", "Muebles", 210m, 350m, 3, 9),
-            ("2002", "MUE-002", "Escritorio regulable 140 cm", "Muebles", 380m, 590m, 2, 4),
-            ("2003", "MUE-003", "Archivador metálico 4 cajones", "Muebles", 150m, 245m, 2, 6),
-            ("3001", "PAP-001", "Resma de papel A4 500 hojas", "Papelería", 3.20m, 5.80m, 20, 90),
-            ("3002", "PAP-002", "Cuaderno rayado universitario", "Papelería", 2.10m, 4.50m, 25, 110),
-            ("3003", "PAP-003", "Bolígrafo tinta azul", "Papelería", 0.45m, 1.20m, 50, 300),
-            ("4001", "LIM-001", "Limpiador multiuso 5 L", "Limpieza", 4.80m, 8.90m, 10, 18),
-            ("4002", "LIM-002", "Alcohol en gel 500 ml", "Limpieza", 1.90m, 3.75m, 15, 7)
-        };
+        SeedCatalog(db, company.Id, admin.Id);
+    }
 
-        foreach (var (plu, sku, description, category, cost, price, minimumStock, stock) in products)
+    private static void SeedCatalog(AppDbContext db, int companyId, int adminId)
+    {
+        var catalog = DemoCatalog.Products;
+        var created = new List<(Product Product, int Stock)>(catalog.Count);
+        var categoryCounters = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        for (var index = 0; index < catalog.Count; index++)
         {
+            var entry = catalog[index];
+
+            if (!categoryCounters.TryGetValue(entry.Category, out var categoryNumber))
+                categoryNumber = 0;
+
+            categoryNumber++;
+            categoryCounters[entry.Category] = categoryNumber;
+
+            var categoryCode = CategoryCodes.TryGetValue(entry.Category, out var code)
+                ? code
+                : "GEN";
+
+            var plu = (1001 + index).ToString("0000");
+            var sku = $"{categoryCode}-{categoryNumber:000}";
+
+            // Costo de referencia: 72% del precio de venta, con dos decimales.
+            var cost = Math.Round(entry.Price * 0.72m, 2);
+
+            var minimumStock = 4 + (index % 9);
+            var stock = minimumStock + 6 + (index * 7 % 70);
+
+            // Algunos productos quedan a propósito por debajo del mínimo
+            // para poder probar la alerta de stock bajo.
+            if (index % 13 == 0)
+                stock = Math.Max(0, minimumStock - 2);
+
             var product = Product.Create(
-                company.Id,
+                companyId,
                 Plu.Create(plu),
                 Sku.Create(sku),
-                description,
-                category,
+                entry.Description,
+                entry.Category,
                 Money.Create(cost),
-                Money.Create(price),
+                Money.Create(entry.Price),
                 minimumStock);
 
             db.Products.Add(product);
-            db.SaveChanges();
+            created.Add((product, stock));
+        }
 
-            var stockItem = StockItem.Create(product.Id, company.Id);
+        // Primer guardado: EF asigna los Id de todos los productos.
+        db.SaveChanges();
+
+        var stockItems = new List<StockItem>(created.Count);
+
+        foreach (var (product, stock) in created)
+        {
+            var stockItem = StockItem.Create(product.Id, companyId);
             var movement = StockMovement.Receipt(
-                company.Id,
+                companyId,
                 product.Id,
-                admin.Id,
+                adminId,
                 Quantity.CreateWhole(stock),
                 reference: "Carga inicial de demostración");
 
             stockItem.AddMovement(movement);
             db.StockItems.Add(stockItem);
             db.StockMovements.Add(movement);
-            db.SaveChanges();
-
-            product.LinkStockItem(stockItem.Id);
-            db.SaveChanges();
+            stockItems.Add(stockItem);
         }
+
+        db.SaveChanges();
+
+        for (var index = 0; index < created.Count; index++)
+            created[index].Product.LinkStockItem(stockItems[index].Id);
+
+        db.SaveChanges();
     }
 
     /// <summary>
-    /// La versión anterior guardaba Product.Name/Price/Stock en la misma tabla.
-    /// Si detectamos ese esquema viejo, recreamos la base demo para evitar
-    /// columnas faltantes. En una app con datos productivos se usaría una migración.
+    /// La versión anterior no tenía PLU ni imagen de producto. Si detectamos
+    /// un esquema viejo, recreamos la base demo para evitar columnas faltantes.
+    /// En una app con datos productivos se usaría una migración.
     /// </summary>
     private static void EnsureCompatibleSchema(AppDbContext db)
     {
@@ -122,17 +168,18 @@ public static class DatabaseInitializer
 
                 using var reader = columnsCommand.ExecuteReader();
                 var hasPluColumn = false;
+                var hasImageColumn = false;
 
                 while (reader.Read())
                 {
-                    if (string.Equals(reader.GetString(1), "Plu", StringComparison.OrdinalIgnoreCase))
-                    {
+                    var columnName = reader.GetString(1);
+                    if (string.Equals(columnName, "Plu", StringComparison.OrdinalIgnoreCase))
                         hasPluColumn = true;
-                        break;
-                    }
+                    else if (string.Equals(columnName, "ImagePath", StringComparison.OrdinalIgnoreCase))
+                        hasImageColumn = true;
                 }
 
-                incompatible = !hasPluColumn;
+                incompatible = !hasPluColumn || !hasImageColumn;
             }
         }
         finally

@@ -41,11 +41,16 @@ Inventory.slnx
         ├── Program.cs                    # Punto de entrada
         ├── Session.cs                    # Sesión estática del usuario logueado
         ├── Di.cs                         # Composition root manual
-        ├── DatabaseInitializer.cs        # Creación de esquema + seed demo
+        ├── DatabaseInitializer.cs        # Creación de esquema + seed demo (314 productos)
         ├── MainShell.cs                  # Ventana principal y navegación
+        ├── Seeding/
+        │   └── DemoCatalog.cs            # Catálogo demo de supermercado (314 productos)
+        ├── Imaging/
+        │   └── ProductImages.cs          # Guardado, carga y placeholder de imágenes
         ├── Forms/
         │   ├── Login.cs                  # Autenticación
-        │   └── ProductEditor.cs          # Alta/edición de productos
+        │   ├── ProductEditor.cs          # Alta de productos nuevos (con imagen)
+        │   └── ProductPreview.cs         # Detalle de producto de solo lectura
         ├── Controls/
         │   ├── UserProfilePanel.cs       # Tarjeta de perfil + empresa
         │   ├── TerminalHeader.cs         # Encabezado del terminal
@@ -53,7 +58,7 @@ Inventory.slnx
         └── Views/
             ├── IView.cs                  # Contrato para vistas dinámicas
             ├── HomeView.cs               # Dashboard con métricas
-            ├── ProductsView.cs           # CRUD de productos
+            ├── ProductsView.cs           # Catálogo de solo lectura + alta/eliminación
             ├── StockView.cs              # Consulta de stock
             ├── SalesView.cs              # Placeholder
             ├── QueriesView.cs            # Búsqueda por PLU/SKU
@@ -108,7 +113,7 @@ Distribución en 4 sectores:
 | Clave | Vista | Estado |
 |-------|-------|--------|
 | `inicio` | `HomeView` | Dashboard con productos, unidades, stock bajo y valor |
-| `productos` | `ProductsView` | CRUD completo contra SQLite |
+| `productos` | `ProductsView` | Catálogo de solo lectura: ver detalle, alta y eliminación |
 | `stock` | `StockView` | Listado real, búsqueda y filtro de stock bajo |
 | `ventas` | `SalesView` | Placeholder visual |
 | `consultas` | `QueriesView` | Búsqueda por PLU o SKU con ficha del producto |
@@ -133,12 +138,17 @@ Distribución en 4 sectores:
 - Motor: **SQLite** vía Entity Framework Core 10
 - Archivo: `inventory.db` en la carpeta de ejecución del `.exe`
 - Migraciones: NO se usan; se llama `db.Database.EnsureCreated()` en `DatabaseInitializer.cs`
-- Si se detecta el esquema viejo (sin columna `Plu`), la base demo se recrea automáticamente.
+- Si se detecta el esquema viejo (sin columna `Plu` o `ImagePath`), la base demo se recrea automáticamente.
 - Seed inicial:
   - 1 empresa
   - 2 usuarios (`admin` y `ecano`)
-  - 12 productos con PLU, SKU, costo, precio, stock mínimo
-  - 12 `StockItem` con movimientos de recepción inicial
+  - 314 productos reales de supermercado argentino en 11 categorías
+  - 314 `StockItem` con movimientos de recepción inicial
+  - 25 productos quedan a propósito con stock bajo para probar la alerta
+- Catálogo demo (`Seeding/DemoCatalog.cs`): Bebidas, Cereales y desayuno, Golosinas,
+  Panadería, Almacén, Lácteos, Limpieza, Perfumería, Congelados, Carnes y Frutas y Verduras.
+- PLU generados de `1001` a `1314`; SKU por categoría (`BEB-001`, `ALM-015`, etc.).
+- Costo demo calculado al 72% del precio de venta; precios de referencia entre `$500` y `$22.000` ARS.
 
 ### Tablas principales
 
@@ -167,7 +177,25 @@ dotnet build Inventory.slnx
 
 ---
 
-## 7. Cambios recientes
+## 7. Cómo agregar productos
+
+1. Iniciar sesión y entrar a **Productos**.
+2. Presionar **Nuevo** (arriba a la derecha de la grilla).
+3. Completar PLU, SKU, nombre, categoría, costo, precio, stock mínimo y stock inicial.
+4. Opcionalmente, presionar **Elegir imagen...** para seleccionar una foto del producto.
+   La imagen se copia a la carpeta `images/` junto al `.exe` y se guarda su ruta relativa.
+5. Presionar **Guardar**.
+
+- **Ver detalle** (o doble clic sobre una fila) abre `ProductPreview`, una ficha de
+  solo lectura con imagen, nombre, PLU, SKU, categoría, costo, precio, stock actual,
+  stock mínimo, estado y valor del stock.
+- Los productos existentes **no se pueden editar**: solo consultar o eliminar.
+- Si un producto no tiene imagen, se muestra un placeholder con sus iniciales y un
+  color asociado a la categoría.
+
+---
+
+## 8. Cambios recientes
 
 1. **Migración DDD completada:** se corrigieron namespaces de `Catalog`, se conectaron
    los value objects con EF Core y se actualizaron Application/Infrastructure/Desktop.
@@ -182,10 +210,18 @@ dotnet build Inventory.slnx
    consistente, toolbar de acciones y placeholders visuales.
 7. **Limpieza:** se eliminaron formularios y servicios legacy duplicados
    (`Main`, `ProductList`, `IInventoryService`, `InMemoryInventoryRepository`, `Class1`).
+8. **Catálogo demo ampliado:** 314 productos reales de supermercado en 11 categorías,
+   con marcas conocidas y precios de referencia argentinos (`Seeding/DemoCatalog.cs`).
+9. **Imagen de producto:** nuevo campo `ImagePath` en dominio, DTOs, EF Core y servicios.
+   `Imaging/ProductImages.cs` guarda, carga y genera placeholders por categoría.
+10. **Edición reemplazada por vista previa:** `ProductEditor` es solo para alta;
+    `ProductPreview` muestra la ficha completa en modo solo lectura.
+11. **Productos de solo lectura:** `ProductsView` usa **Ver detalle**, doble clic para
+    el preview y mantiene **Nuevo**, **Eliminar** y **Actualizar**.
 
 ---
 
-## 8. Notas para futuros agentes
+## 9. Notas para futuros agentes
 
 - El proyecto usa **Windows Forms puro** (no WPF, no XAML, no MVVM). Los controles se crean en código C#.
 - No agregar dependencias NuGet innecesarias sin justificación.
@@ -197,4 +233,8 @@ dotnet build Inventory.slnx
 - El stock se modifica únicamente mediante `StockMovement`; no agregar una propiedad `Stock`
   editable a `Product`.
 - PLU y SKU son inmutables una vez creado el producto (identificadores de negocio).
+- Los productos existentes no se editan: `ProductPreview` es solo lectura. Para cambiarlos
+  hay que eliminarlos y volver a crearlos con **Nuevo**.
+- Las imágenes se guardan en `images/` bajo `AppContext.BaseDirectory`; usar siempre
+  `ProductImages.Save/Load/Resolve` y no rutas absolutas en la base.
 - Las vistas **no** tocan `AppDbContext` ni entidades de dominio: solo DTOs y servicios.

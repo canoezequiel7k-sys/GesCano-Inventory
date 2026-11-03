@@ -61,7 +61,7 @@ public partial class ProductsView : UserControl, IView
 
         header.Controls.Add(new Label
         {
-            Text = "Administrá el catálogo, precios y niveles de stock.",
+            Text = "Catálogo de solo lectura. Hacé doble clic en un producto para ver su detalle.",
             Font = new Font("Segoe UI", 9.5F),
             ForeColor = Color.FromArgb(127, 140, 141),
             TextAlign = ContentAlignment.TopLeft,
@@ -100,8 +100,8 @@ public partial class ProductsView : UserControl, IView
         var btnNew = CreateActionButton("Nuevo", Color.FromArgb(46, 204, 113));
         btnNew.Click += (_, _) => AddProduct();
 
-        var btnEdit = CreateActionButton("Editar", Color.FromArgb(52, 152, 219));
-        btnEdit.Click += (_, _) => EditProduct();
+        var btnPreview = CreateActionButton("Ver detalle", Color.FromArgb(52, 152, 219));
+        btnPreview.Click += (_, _) => PreviewProduct();
 
         var btnDelete = CreateActionButton("Eliminar", Color.FromArgb(231, 76, 60));
         btnDelete.Click += (_, _) => DeleteProduct();
@@ -110,7 +110,7 @@ public partial class ProductsView : UserControl, IView
         btnRefresh.Click += (_, _) => LoadData();
 
         actions.Controls.Add(btnNew);
-        actions.Controls.Add(btnEdit);
+        actions.Controls.Add(btnPreview);
         actions.Controls.Add(btnDelete);
         actions.Controls.Add(btnRefresh);
 
@@ -163,7 +163,7 @@ public partial class ProductsView : UserControl, IView
         _dgv.CellDoubleClick += (_, e) =>
         {
             if (e.RowIndex >= 0)
-                EditProduct();
+                PreviewProduct();
         };
 
         _dgv.CellFormatting += (_, e) =>
@@ -263,14 +263,13 @@ public partial class ProductsView : UserControl, IView
             LoadData();
     }
 
-    private void EditProduct()
+    private void PreviewProduct()
     {
-        if (Session.Company is null || _dgv.CurrentRow?.DataBoundItem is not ProductDto dto)
+        if (_dgv.CurrentRow?.DataBoundItem is not ProductDto dto)
             return;
 
-        var editor = new ProductEditor(Session.Company.Id, dto);
-        if (editor.ShowDialog(FindForm()) == DialogResult.OK)
-            LoadData();
+        using var preview = new ProductPreview(dto);
+        preview.ShowDialog(FindForm());
     }
 
     private void DeleteProduct()

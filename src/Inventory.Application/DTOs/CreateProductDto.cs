@@ -8,4 +8,5 @@ public record CreateProductDto(
     decimal Cost,
     decimal Price,
     int MinimumStock,
-    int InitialStock);
+    int InitialStock,
+    string? ImagePath = null);

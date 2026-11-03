@@ -9,8 +9,10 @@ public record ProductDto(
     decimal Cost,
     decimal Price,
     int MinimumStock,
-    int Stock)
+    int Stock,
+    string? ImagePath = null)
 {
     public bool IsLowStock => Stock <= MinimumStock;
     public string Status => IsLowStock ? "Stock bajo" : "Normal";
+    public decimal InventoryValue => Cost * Stock;
 }

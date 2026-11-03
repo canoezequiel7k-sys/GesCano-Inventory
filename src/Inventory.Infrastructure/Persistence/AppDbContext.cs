@@ -76,6 +76,7 @@ public class AppDbContext : DbContext
                 .HasConversion(v => v.Value, v => Money.Create(v))
                 .HasColumnType("decimal(18,2)");
             e.Property(p => p.MinimumStock).IsRequired();
+            e.Property(p => p.ImagePath).HasMaxLength(300);
 
             e.HasIndex(p => new { p.Sku, p.CompanyId }).IsUnique();
             e.HasIndex(p => new { p.Plu, p.CompanyId }).IsUnique();

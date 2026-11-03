@@ -76,7 +76,8 @@ public class ProductService : IProductService
             dto.Category,
             Money.Create(dto.Cost),
             Money.Create(dto.Price),
-            dto.MinimumStock);
+            dto.MinimumStock,
+            dto.ImagePath);
 
         _productRepository.Add(product);
 
@@ -143,6 +144,7 @@ public class ProductService : IProductService
             product.UnitCost.Value,
             product.UnitPrice.Value,
             product.MinimumStock,
-            (int)Math.Floor(stock));
+            (int)Math.Floor(stock),
+            product.ImagePath);
     }
 }
