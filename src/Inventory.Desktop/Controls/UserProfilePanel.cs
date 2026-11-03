@@ -167,8 +167,13 @@ public partial class UserProfilePanel : UserControl
         _lblCompany.Text = company?.Name ?? "Sin empresa";
     }
 
-    private static string TranslateRole(string role) =>
-        role.Equals("Admin", StringComparison.OrdinalIgnoreCase) ? "Administrador" : "Empleado";
+    private static string TranslateRole(string role) => role switch
+    {
+        "Admin" => "Administrador",
+        "Manager" => "Gerente",
+        "FloorManager" => "Jefe de salón",
+        _ => "Repositor"
+    };
 
     public void UpdateProfile()
     {

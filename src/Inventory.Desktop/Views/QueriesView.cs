@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.Windows.Forms;
 using Inventory.Application.DTOs;
+using Inventory.Desktop.Imaging;
 
 namespace Inventory.Desktop.Views;
 
@@ -18,6 +19,8 @@ public partial class QueriesView : UserControl, IView
     private Label _lblMinimum = null!;
     private Label _lblStatus = null!;
     private Label _lblValue = null!;
+    private PictureBox _imgProduct = null!;
+    private Image? _image;
 
     public string Title => "Consultas";
 
@@ -42,7 +45,7 @@ public partial class QueriesView : UserControl, IView
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 58F));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 50F));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 28F));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 250F));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 310F));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
 
         var header = new TableLayoutPanel
@@ -210,7 +213,55 @@ public partial class QueriesView : UserControl, IView
         resultContainer.Controls.Add(resultLayout, 0, 0);
         resultContainer.Controls.Add(stockRow, 0, 1);
 
-        result.Controls.Add(resultContainer);
+        // Imagen del producto a la derecha, sin mover los datos existentes.
+        var imageCard = new Panel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = Color.White,
+            Padding = new Padding(10),
+            Margin = new Padding(16, 0, 0, 0)
+        };
+
+        var imageLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2
+        };
+        imageLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 22F));
+        imageLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+
+        imageLayout.Controls.Add(new Label
+        {
+            Text = "IMAGEN DEL PRODUCTO",
+            Dock = DockStyle.Fill,
+            Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+            ForeColor = Color.FromArgb(127, 140, 141),
+            TextAlign = ContentAlignment.MiddleLeft
+        }, 0, 0);
+
+        _imgProduct = new PictureBox
+        {
+            Dock = DockStyle.Fill,
+            SizeMode = PictureBoxSizeMode.Zoom,
+            BackColor = Color.FromArgb(245, 247, 250)
+        };
+        imageLayout.Controls.Add(_imgProduct, 0, 1);
+        imageCard.Controls.Add(imageLayout);
+
+        var resultArea = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 1
+        };
+        resultArea.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        resultArea.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 240F));
+        resultArea.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+        resultArea.Controls.Add(resultContainer, 0, 0);
+        resultArea.Controls.Add(imageCard, 1, 0);
+
+        result.Controls.Add(resultArea);
 
         root.Controls.Add(header, 0, 0);
         root.Controls.Add(searchPanel, 0, 1);
@@ -218,6 +269,7 @@ public partial class QueriesView : UserControl, IView
         root.Controls.Add(result, 0, 3);
 
         Controls.Add(root);
+        ShowImage(null);
     }
 
     private static Label CreateFieldLabel(string text) => new()
@@ -284,6 +336,7 @@ public partial class QueriesView : UserControl, IView
         _lblStock.Text = product.Stock.ToString();
         _lblMinimum.Text = product.MinimumStock.ToString();
         _lblValue.Text = (product.Cost * product.Stock).ToString("C2");
+        ShowImage(product);
     }
 
     private void ClearResult()
@@ -299,6 +352,26 @@ public partial class QueriesView : UserControl, IView
         _lblStock.Text = "—";
         _lblMinimum.Text = "—";
         _lblValue.Text = "—";
+        ShowImage(null);
+    }
+
+    private void ShowImage(ProductDto? product)
+    {
+        _image?.Dispose();
+        _image = product is null
+            ? ProductImages.CreatePlaceholder("?", "Sin producto", 360, 360)
+            : ProductImages.LoadForProduct(product.ImagePath, product.Plu, product.Sku)
+              ?? ProductImages.CreatePlaceholder(product.Name, product.Category, 360, 360);
+
+        _imgProduct.Image = _image;
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+            _image?.Dispose();
+
+        base.Dispose(disposing);
     }
 
     public void Activate()

@@ -41,10 +41,10 @@ Inventory.slnx
         ├── Program.cs                    # Punto de entrada
         ├── Session.cs                    # Sesión estática del usuario logueado
         ├── Di.cs                         # Composition root manual
-        ├── DatabaseInitializer.cs        # Creación de esquema + seed demo (314 productos)
+        ├── DatabaseInitializer.cs        # Creación de esquema + seed demo (431 productos)
         ├── MainShell.cs                  # Ventana principal y navegación
         ├── Seeding/
-        │   └── DemoCatalog.cs            # Catálogo demo de supermercado (314 productos)
+        │   └── DemoCatalog.cs            # Catálogo demo de supermercado (431 productos)
         ├── Imaging/
         │   └── ProductImages.cs          # Guardado, carga y placeholder de imágenes
         ├── Forms/
@@ -117,16 +117,21 @@ Distribución en 4 sectores:
 | `stock` | `StockView` | Listado real, búsqueda y filtro de stock bajo |
 | `ventas` | `SalesView` | Placeholder visual |
 | `consultas` | `QueriesView` | Búsqueda por PLU o SKU con ficha del producto |
-| `administracion` | `AdministrationView` | Placeholder; botón deshabilitado |
+| `administracion` | `AdministrationView` | Reconteo de stock (próximamente; ver `docs/reconteo-stock.md`) |
 
 ---
 
 ## 4. Autenticación y sesión
 
 - Pantalla de login: `Forms/Login.cs`
-- Usuarios demo:
-  - `admin` / `123456` — Administrador de Sistemas, legajo 1, rol Admin
-  - `ecano` / `123456` — Programador, legajo 102, rol Employee
+- Usuarios demo (todos con contraseña `123456`):
+  - `admin` — Administrador de Sistemas, legajo 1, rol Admin
+  - `ecano` — Programador, legajo 102, rol Empleado
+  - `gerente` — Gerente, legajo 201, rol Manager
+  - `jefe` — Jefe de Salón, legajo 202, rol FloorManager
+  - `repositor` — Repositor, legajo 203, rol Employee
+- Permisos de catálogo: **Admin, Manager y FloorManager** pueden crear y eliminar.
+  **Employee/Repositor** solo puede consultar, filtrar y ver detalles.
 - Empresa demo: `Demo Company S.A.`
 - Contraseñas hasheadas con **BCrypt** (`BCryptPasswordHasher`)
 - Sesión estática en `Session.cs` (`User`, `Company`, `IsLoggedIn`, `Clear()`)
@@ -142,12 +147,12 @@ Distribución en 4 sectores:
 - Seed inicial:
   - 1 empresa
   - 2 usuarios (`admin` y `ecano`)
-  - 314 productos reales de supermercado argentino en 11 categorías
-  - 314 `StockItem` con movimientos de recepción inicial
+  - 431 productos reales de supermercado argentino en 11 categorías
+  - 431 `StockItem` con movimientos de recepción inicial
   - 25 productos quedan a propósito con stock bajo para probar la alerta
 - Catálogo demo (`Seeding/DemoCatalog.cs`): Bebidas, Cereales y desayuno, Golosinas,
   Panadería, Almacén, Lácteos, Limpieza, Perfumería, Congelados, Carnes y Frutas y Verduras.
-- PLU generados de `1001` a `1314`; SKU por categoría (`BEB-001`, `ALM-015`, etc.).
+- PLU generados de `1001` a `1431`; SKU por categoría (`BEB-001`, `ALM-015`, etc.).
 - Costo demo calculado al 72% del precio de venta; precios de referencia entre `$500` y `$22.000` ARS.
 
 ### Tablas principales
@@ -179,7 +184,7 @@ dotnet build Inventory.slnx
 
 ## 7. Cómo agregar productos
 
-1. Iniciar sesión y entrar a **Productos**.
+1. Iniciar sesión y entrar a **Productos**. Solo Admin, Gerente o Jefe de Salón ven el botón **Nuevo**.
 2. Presionar **Nuevo** (arriba a la derecha de la grilla).
 3. Completar PLU, SKU, nombre, categoría, costo, precio, stock mínimo y stock inicial.
 4. Opcionalmente, presionar **Elegir imagen...** para seleccionar una foto del producto.
@@ -190,8 +195,35 @@ dotnet build Inventory.slnx
   solo lectura con imagen, nombre, PLU, SKU, categoría, costo, precio, stock actual,
   stock mínimo, estado y valor del stock.
 - Los productos existentes **no se pueden editar**: solo consultar o eliminar.
+- **Filtros de productos:** categoría (incluye “Todas”), orden por nombre A-Z/Z-A y
+  por stock de mayor a menor o menor a mayor. Se combinan con el buscador.
+- **Repositor/Empleado:** no ve **Nuevo** ni **Eliminar**; solo consulta, filtros,
+  detalle y actualización de la lista.
 - Si un producto no tiene imagen, se muestra un placeholder con sus iniciales y un
   color asociado a la categoría.
+
+### Imágenes masivas por PLU o SKU
+
+Para cargar muchas imágenes sin tocar la base:
+
+1. Nombrar cada archivo con el PLU o el SKU del producto: `1157.png`, `ALM-015.jpg`.
+2. Copiarlas a `src/Inventory.Desktop/images/products/`.
+3. Compilar/ejecutar: el proyecto copia esa carpeta junto al `.exe`.
+4. La app busca en `images/products/` cuando el producto no tiene imagen cargada.
+   Formatos: `.png`, `.jpg`, `.jpeg`, `.bmp`, `.gif` y WebP (aunque el archivo esté
+   nombrado como `.png`).
+5. La grilla de **Productos** muestra una miniatura de cada producto; el detalle y
+   **Consultas** muestran la imagen completa.
+
+La consulta (`QueriesView`) y el detalle (`ProductPreview`) usan la misma búsqueda:
+imagen guardada → imagen por PLU → imagen por SKU → placeholder.
+
+### Administración: reconteo de stock (futuro)
+
+- El módulo se usará para el reconteo físico mensual por sección.
+- Se cuenta depósito + salón y se ajusta el stock con un movimiento, sin editar directo.
+- La mercadería se identifica por código EAN vinculado al PLU/SKU.
+- Especificación completa en `docs/reconteo-stock.md`.
 
 ---
 
@@ -210,7 +242,7 @@ dotnet build Inventory.slnx
    consistente, toolbar de acciones y placeholders visuales.
 7. **Limpieza:** se eliminaron formularios y servicios legacy duplicados
    (`Main`, `ProductList`, `IInventoryService`, `InMemoryInventoryRepository`, `Class1`).
-8. **Catálogo demo ampliado:** 314 productos reales de supermercado en 11 categorías,
+8. **Catálogo demo ampliado:** 431 productos reales de supermercado en 11 categorías,
    con marcas conocidas y precios de referencia argentinos (`Seeding/DemoCatalog.cs`).
 9. **Imagen de producto:** nuevo campo `ImagePath` en dominio, DTOs, EF Core y servicios.
    `Imaging/ProductImages.cs` guarda, carga y genera placeholders por categoría.
@@ -218,6 +250,11 @@ dotnet build Inventory.slnx
     `ProductPreview` muestra la ficha completa en modo solo lectura.
 11. **Productos de solo lectura:** `ProductsView` usa **Ver detalle**, doble clic para
     el preview y mantiene **Nuevo**, **Eliminar** y **Actualizar**.
+12. **Filtros de catálogo:** por categoría, nombre A-Z/Z-A y stock mayor/menor.
+13. **Permisos por rol:** Admin, Gerente (`gerente`) y Jefe de Salón (`jefe`) pueden
+    crear/eliminar; Repositor (`repositor`) y Empleado solo consultan.
+14. **Miniaturas e imágenes WebP:** la grilla de Productos muestra la imagen de cada
+    producto y `ProductImages` decodifica WebP con WPF/WIC cuando GDI+ falla.
 
 ---
 

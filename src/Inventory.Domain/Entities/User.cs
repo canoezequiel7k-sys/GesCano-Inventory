@@ -7,7 +7,7 @@ namespace Inventory.Domain.Entities;
 // [DDD] Agregado raíz del bounded context Identity.
 // Representa un usuario del sistema, perteneciente a una empresa.
 // Invariantes: Legajo único por empresa, hash de contraseña obligatorio,
-// rol dentro de UserRole (Admin, Employee).
+// rol dentro de UserRole (Admin, Manager, FloorManager, Employee).
 public sealed class User : Entity
 {
     // Datos de la empresa

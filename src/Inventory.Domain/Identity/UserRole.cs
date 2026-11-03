@@ -2,10 +2,12 @@ using System;
 
 namespace Inventory.Domain.Identity;
 
-// [Obsolet("Use the comparison methods of User instead", false)] // Comentado temporalmente pending compilation
+// [NEGOCIO] El orden importa para la comparación HasRole():
+// Admin > Manager > FloorManager > Employee.
 public enum UserRole
 {
-    // [NEGOCIO] El orden importa para la comparación HasRole(): Admin > Employee
-    Employee = 1,      // Usuario estándar del sistema
-    Admin = 2          // Administrador con todos los permisos
+    Employee = 1,      // Repositor / usuario estándar (solo consulta)
+    FloorManager = 2,  // Jefe de salón
+    Manager = 3,       // Gerente
+    Admin = 4          // Administrador con todos los permisos
 }

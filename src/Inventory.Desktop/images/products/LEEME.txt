@@ -1,0 +1,9 @@
+Carpeta para imágenes masivas de productos.
+
+Nombrá cada archivo con el PLU o el SKU del producto, por ejemplo:
+
+  1157.png    (PLU del aceite Cañuelas)
+  ALM-015.jpg (SKU del aceite Cañuelas)
+
+Formatos: .png, .jpg, .jpeg, .bmp, .gif
+La app las toma automáticamente al consultar o ver el detalle del producto.

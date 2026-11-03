@@ -110,7 +110,7 @@ public partial class ProductPreview : Form
             BackColor = Color.FromArgb(245, 247, 250)
         };
 
-        _image = ProductImages.Load(_product.ImagePath)
+        _image = ProductImages.LoadForProduct(_product.ImagePath, _product.Plu, _product.Sku)
             ?? ProductImages.CreatePlaceholder(_product.Name, _product.Category, 480, 480);
         picture.Image = _image;
 

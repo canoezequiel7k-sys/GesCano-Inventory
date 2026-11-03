@@ -3,6 +3,7 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Text;
 using System.IO;
 using System.Linq;
+using System.Windows.Media.Imaging;
 
 namespace Inventory.Desktop.Imaging;
 
@@ -58,9 +59,46 @@ public static class ProductImages
         return File.Exists(fullPath) ? fullPath : null;
     }
 
-    public static Image? Load(string? storedPath)
+    /// <summary>
+    /// Busca la imagen guardada y, si no existe, una imagen masiva por PLU o SKU
+    /// en images/products (por ejemplo 1157.png o ALM-015.jpg).
+    /// </summary>
+    public static string? ResolveForProduct(string? storedPath, string plu, string sku)
     {
-        var fullPath = Resolve(storedPath);
+        var direct = Resolve(storedPath);
+        if (direct is not null)
+            return direct;
+
+        var folder = Path.Combine(AppContext.BaseDirectory, ImagesFolder, "products");
+        if (!Directory.Exists(folder))
+            return null;
+
+        string[] keys = [plu, sku];
+        string[] extensions = [".png", ".jpg", ".jpeg", ".bmp", ".gif"];
+
+        foreach (var key in keys)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                continue;
+
+            foreach (var extension in extensions)
+            {
+                var candidate = Path.Combine(folder, key.Trim() + extension);
+                if (File.Exists(candidate))
+                    return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    public static Image? Load(string? storedPath) => LoadFile(Resolve(storedPath));
+
+    public static Image? LoadForProduct(string? storedPath, string plu, string sku)
+        => LoadFile(ResolveForProduct(storedPath, plu, sku));
+
+    private static Image? LoadFile(string? fullPath)
+    {
         if (fullPath is null)
             return null;
 
@@ -70,6 +108,34 @@ public static class ProductImages
             using var stream = new MemoryStream(File.ReadAllBytes(fullPath));
             using var image = Image.FromStream(stream);
             return new Bitmap(image);
+        }
+        catch
+        {
+            // GDI+ no soporta WebP ni algunos formatos modernos. WPF/WIC sí.
+            return LoadWithWpf(fullPath);
+        }
+    }
+
+    private static Image? LoadWithWpf(string fullPath)
+    {
+        try
+        {
+            var decoder = BitmapDecoder.Create(
+                new Uri(fullPath),
+                BitmapCreateOptions.PreservePixelFormat,
+                BitmapCacheOption.OnLoad);
+
+            var frame = decoder.Frames[0];
+            var converted = new FormatConvertedBitmap(frame, System.Windows.Media.PixelFormats.Bgra32, null, 0);
+
+            using var stream = new MemoryStream();
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(converted));
+            encoder.Save(stream);
+
+            stream.Position = 0;
+            using var bitmap = new Bitmap(stream);
+            return new Bitmap(bitmap);
         }
         catch
         {

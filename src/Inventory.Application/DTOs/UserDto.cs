@@ -6,4 +6,8 @@ public record UserDto(
     int CompanyId,
     string Role,
     int EmployeeNumber,
-    string JobTitle);
+    string JobTitle)
+{
+    // Solo gerencia y jefatura de salón pueden crear, actualizar o eliminar productos.
+    public bool CanManageCatalog => Role is "Admin" or "Manager" or "FloorManager";
+}

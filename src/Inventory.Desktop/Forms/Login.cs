@@ -126,7 +126,7 @@ public partial class Login : Form
 
         var lblHint = new Label
         {
-            Text = "Demo: admin / 123456   •   ecano / 123456",
+            Text = "Demo: admin, gerente, jefe y repositor / 123456",
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft,
             ForeColor = Color.FromArgb(149, 165, 166),

@@ -3,6 +3,7 @@ using System.Linq;
 using System.Windows.Forms;
 using Inventory.Application.DTOs;
 using Inventory.Desktop.Forms;
+using Inventory.Desktop.Imaging;
 
 namespace Inventory.Desktop.Views;
 
@@ -10,8 +11,12 @@ public partial class ProductsView : UserControl, IView
 {
     private DataGridView _dgv = null!;
     private TextBox _txtSearch = null!;
+    private ComboBox _cmbCategory = null!;
+    private ComboBox _cmbSort = null!;
     private Label _lblCount = null!;
     private List<ProductDto> _allItems = new();
+    private readonly Dictionary<string, Image> _thumbnails = new(StringComparer.OrdinalIgnoreCase);
+    private bool _updatingFilters;
 
     public string Title => "Productos";
 
@@ -31,11 +36,12 @@ public partial class ProductsView : UserControl, IView
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 4
+            RowCount = 5
         };
         root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 58F));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 48F));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 42F));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 28F));
 
@@ -61,7 +67,9 @@ public partial class ProductsView : UserControl, IView
 
         header.Controls.Add(new Label
         {
-            Text = "Catálogo de solo lectura. Hacé doble clic en un producto para ver su detalle.",
+            Text = Session.CanManageCatalog
+                ? "Administrá el catálogo, filtrá por categoría y controlá el stock."
+                : "Modo repositor: podés consultar y filtrar. El alta y la eliminación son solo para gerencia.",
             Font = new Font("Segoe UI", 9.5F),
             ForeColor = Color.FromArgb(127, 140, 141),
             TextAlign = ContentAlignment.TopLeft,
@@ -114,8 +122,73 @@ public partial class ProductsView : UserControl, IView
         actions.Controls.Add(btnDelete);
         actions.Controls.Add(btnRefresh);
 
+        // Alta y eliminación solo para gerencia / jefatura de salón.
+        if (!Session.CanManageCatalog)
+        {
+            btnNew.Visible = false;
+            btnDelete.Visible = false;
+        }
+
         toolbar.Controls.Add(_txtSearch, 0, 0);
         toolbar.Controls.Add(actions, 1, 0);
+
+        // Filtros por categoría y orden
+        var filters = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 4,
+            RowCount = 1,
+            Margin = new Padding(0, 2, 0, 6)
+        };
+        filters.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 80F));
+        filters.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220F));
+        filters.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 60F));
+        filters.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 210F));
+
+        filters.Controls.Add(new Label
+        {
+            Text = "Categoría",
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
+            Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+            ForeColor = Color.FromArgb(52, 73, 94)
+        }, 0, 0);
+
+        _cmbCategory = new ComboBox
+        {
+            Dock = DockStyle.Fill,
+            DropDownStyle = ComboBoxStyle.DropDownList,
+            Font = new Font("Segoe UI", 9.5F),
+            Margin = new Padding(0, 6, 12, 6)
+        };
+
+        filters.Controls.Add(new Label
+        {
+            Text = "Orden",
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
+            Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+            ForeColor = Color.FromArgb(52, 73, 94)
+        }, 2, 0);
+
+        _cmbSort = new ComboBox
+        {
+            Dock = DockStyle.Fill,
+            DropDownStyle = ComboBoxStyle.DropDownList,
+            Font = new Font("Segoe UI", 9.5F),
+            Margin = new Padding(0, 6, 0, 6)
+        };
+        _cmbSort.Items.AddRange(
+        [
+            "Nombre A-Z",
+            "Nombre Z-A",
+            "Stock: mayor a menor",
+            "Stock: menor a mayor"
+        ]);
+        _cmbSort.SelectedIndex = 0;
+
+        filters.Controls.Add(_cmbCategory, 1, 0);
+        filters.Controls.Add(_cmbSort, 3, 0);
 
         // Grilla
         _dgv = new DataGridView
@@ -150,6 +223,14 @@ public partial class ProductsView : UserControl, IView
         _dgv.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
         _dgv.ColumnHeadersDefaultCellStyle.Padding = new Padding(4, 0, 4, 0);
 
+        _dgv.Columns.Add(new DataGridViewImageColumn
+        {
+            Name = "Thumb",
+            HeaderText = "",
+            Width = 54,
+            ImageLayout = DataGridViewImageCellLayout.Zoom,
+            DefaultCellStyle = new DataGridViewCellStyle { Padding = new Padding(6) }
+        });
         _dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Plu", HeaderText = "PLU", DataPropertyName = "Plu", Width = 80 });
         _dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Sku", HeaderText = "SKU", DataPropertyName = "Sku", Width = 110 });
         _dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Name", HeaderText = "Nombre", DataPropertyName = "Name", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, MinimumWidth = 220 });
@@ -166,12 +247,20 @@ public partial class ProductsView : UserControl, IView
                 PreviewProduct();
         };
 
+        _cmbCategory.SelectedIndexChanged += (_, _) => ApplyFilter();
+        _cmbSort.SelectedIndexChanged += (_, _) => ApplyFilter();
+
         _dgv.CellFormatting += (_, e) =>
         {
             if (e.RowIndex < 0 || _dgv.Rows[e.RowIndex].DataBoundItem is not ProductDto dto)
                 return;
 
-            if (e.ColumnIndex == _dgv.Columns["Status"]!.Index)
+            if (e.ColumnIndex == _dgv.Columns["Thumb"]!.Index)
+            {
+                e.Value = GetThumbnail(dto);
+                e.FormattingApplied = true;
+            }
+            else if (e.ColumnIndex == _dgv.Columns["Status"]!.Index)
             {
                 e.CellStyle!.ForeColor = dto.IsLowStock ? Color.FromArgb(192, 57, 43) : Color.FromArgb(39, 174, 96);
                 e.CellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
@@ -193,8 +282,9 @@ public partial class ProductsView : UserControl, IView
 
         root.Controls.Add(header, 0, 0);
         root.Controls.Add(toolbar, 0, 1);
-        root.Controls.Add(_dgv, 0, 2);
-        root.Controls.Add(_lblCount, 0, 3);
+        root.Controls.Add(filters, 0, 2);
+        root.Controls.Add(_dgv, 0, 3);
+        root.Controls.Add(_lblCount, 0, 4);
 
         Controls.Add(root);
     }
@@ -222,28 +312,112 @@ public partial class ProductsView : UserControl, IView
             .OrderBy(p => p.Name)
             .ToList();
 
+        ClearThumbnails();
+        RefreshCategories();
         ApplyFilter();
+    }
+
+    private Image GetThumbnail(ProductDto product)
+    {
+        if (_thumbnails.TryGetValue(product.Plu, out var cached))
+            return cached;
+
+        using var source = ProductImages.LoadForProduct(product.ImagePath, product.Plu, product.Sku)
+            ?? ProductImages.CreatePlaceholder(product.Name, product.Category, 72, 72);
+
+        var thumbnail = new Bitmap(source, new Size(38, 38));
+        _thumbnails[product.Plu] = thumbnail;
+        return thumbnail;
+    }
+
+    private void ClearThumbnails()
+    {
+        foreach (var image in _thumbnails.Values)
+            image.Dispose();
+
+        _thumbnails.Clear();
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+            ClearThumbnails();
+
+        base.Dispose(disposing);
+    }
+
+    private void RefreshCategories()
+    {
+        if (_cmbCategory is null)
+            return;
+
+        _updatingFilters = true;
+        var previous = _cmbCategory.SelectedItem as string;
+
+        _cmbCategory.Items.Clear();
+        _cmbCategory.Items.Add("Todas las categorías");
+
+        foreach (var category in _allItems
+            .Select(p => p.Category)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(c => c))
+        {
+            _cmbCategory.Items.Add(category);
+        }
+
+        var index = previous is null ? 0 : _cmbCategory.Items.IndexOf(previous);
+        _cmbCategory.SelectedIndex = index >= 0 ? index : 0;
+        _updatingFilters = false;
     }
 
     private void ApplyFilter()
     {
+        if (_updatingFilters)
+            return;
+
         var term = _txtSearch?.Text?.Trim() ?? string.Empty;
 
-        var filtered = string.IsNullOrWhiteSpace(term)
-            ? _allItems
-            : _allItems.Where(p =>
+        IEnumerable<ProductDto> filtered = _allItems;
+
+        if (!string.IsNullOrWhiteSpace(term))
+        {
+            filtered = filtered.Where(p =>
                 p.Plu.Contains(term, StringComparison.OrdinalIgnoreCase) ||
                 p.Sku.Contains(term, StringComparison.OrdinalIgnoreCase) ||
                 p.Name.Contains(term, StringComparison.OrdinalIgnoreCase) ||
-                p.Category.Contains(term, StringComparison.OrdinalIgnoreCase)).ToList();
+                p.Category.Contains(term, StringComparison.OrdinalIgnoreCase));
+        }
+
+        var category = _cmbCategory?.SelectedItem as string;
+        if (!string.IsNullOrWhiteSpace(category) &&
+            !category.Equals("Todas las categorías", StringComparison.OrdinalIgnoreCase))
+        {
+            filtered = filtered.Where(p =>
+                p.Category.Equals(category, StringComparison.OrdinalIgnoreCase));
+        }
+
+        filtered = (_cmbSort?.SelectedItem as string) switch
+        {
+            "Nombre Z-A" => filtered.OrderByDescending(p => p.Name),
+            "Stock: mayor a menor" => filtered.OrderByDescending(p => p.Stock).ThenBy(p => p.Name),
+            "Stock: menor a mayor" => filtered.OrderBy(p => p.Stock).ThenBy(p => p.Name),
+            _ => filtered.OrderBy(p => p.Name)
+        };
+
+        var items = filtered.ToList();
 
         _dgv.DataSource = null;
-        _dgv.DataSource = filtered;
+        _dgv.DataSource = items;
 
         if (_lblCount is not null)
         {
-            var lowStock = filtered.Count(p => p.IsLowStock);
-            _lblCount.Text = $"{filtered.Count} producto(s) mostrados" +
+            var lowStock = items.Count(p => p.IsLowStock);
+            var categoryText = string.IsNullOrWhiteSpace(category) ||
+                category.Equals("Todas las categorías", StringComparison.OrdinalIgnoreCase)
+                ? "todas las categorías"
+                : category;
+
+            _lblCount.Text = $"{items.Count} producto(s) mostrados en {categoryText}" +
                 (lowStock > 0 ? $"   •   {lowStock} con stock bajo" : string.Empty);
         }
     }
@@ -255,7 +429,7 @@ public partial class ProductsView : UserControl, IView
 
     private void AddProduct()
     {
-        if (Session.Company is null)
+        if (Session.Company is null || !Session.CanManageCatalog)
             return;
 
         var editor = new ProductEditor(Session.Company.Id);
@@ -274,7 +448,8 @@ public partial class ProductsView : UserControl, IView
 
     private void DeleteProduct()
     {
-        if (Session.Company is null || _dgv.CurrentRow?.DataBoundItem is not ProductDto dto)
+        if (Session.Company is null || !Session.CanManageCatalog ||
+            _dgv.CurrentRow?.DataBoundItem is not ProductDto dto)
             return;
 
         var confirm = MessageBox.Show(

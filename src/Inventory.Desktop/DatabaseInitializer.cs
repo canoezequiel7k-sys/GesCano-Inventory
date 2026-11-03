@@ -32,35 +32,54 @@ public static class DatabaseInitializer
         EnsureCompatibleSchema(db);
         db.Database.EnsureCreated();
 
-        if (db.Companies.Any())
-            return;
+        var company = db.Companies.FirstOrDefault();
+        if (company is null)
+        {
+            company = new Company { Name = "Demo Company S.A." };
+            db.Companies.Add(company);
+            db.SaveChanges();
+        }
 
-        var company = new Company { Name = "Demo Company S.A." };
-        db.Companies.Add(company);
+        var adminId = EnsureDemoUsers(db, hasher, company.Id);
+
+        if (!db.Products.Any())
+            SeedCatalog(db, company.Id, adminId);
+    }
+
+    /// <summary>
+    /// Crea los usuarios demo que falten sin borrar datos existentes.
+    /// Permite agregar roles nuevos a una base ya inicializada.
+    /// </summary>
+    private static int EnsureDemoUsers(AppDbContext db, IPasswordHasher hasher, int companyId)
+    {
+        var existing = db.Users.Select(u => u.Username).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        void Add(string username, int employeeNumber, string jobTitle, UserRole role)
+        {
+            if (existing.Contains(username))
+                return;
+
+            db.Users.Add(User.Create(
+                companyId,
+                EmployeeNumber.Create(employeeNumber),
+                JobTitle.Create(jobTitle),
+                username,
+                hasher.Hash("123456"),
+                role,
+                isActive: true));
+
+            existing.Add(username);
+        }
+
+        Add("admin", 1, "Administrador de Sistemas", UserRole.Admin);
+        Add("ecano", 102, "Programador", UserRole.Employee);
+        Add("gerente", 201, "Gerente", UserRole.Manager);
+        Add("jefe", 202, "Jefe de Salón", UserRole.FloorManager);
+        Add("repositor", 203, "Repositor", UserRole.Employee);
+
         db.SaveChanges();
 
-        var admin = User.Create(
-            company.Id,
-            EmployeeNumber.Create(1),
-            JobTitle.Create("Administrador de Sistemas"),
-            "admin",
-            hasher.Hash("123456"),
-            UserRole.Admin,
-            isActive: true);
-
-        var ezequiel = User.Create(
-            company.Id,
-            EmployeeNumber.Create(102),
-            JobTitle.Create("Programador"),
-            "ecano",
-            hasher.Hash("123456"),
-            UserRole.Employee,
-            isActive: true);
-
-        db.Users.AddRange(admin, ezequiel);
-        db.SaveChanges();
-
-        SeedCatalog(db, company.Id, admin.Id);
+        return db.Users.First(u => u.Username == "admin").Id;
     }
 
     private static void SeedCatalog(AppDbContext db, int companyId, int adminId)

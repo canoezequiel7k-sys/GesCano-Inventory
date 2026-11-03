@@ -49,7 +49,7 @@ public partial class AdministrationView : UserControl, IView
 
         header.Controls.Add(new Label
         {
-            Text = "Usuarios, empresas y configuración general del sistema.",
+            Text = "Reconteo mensual de stock: depósito + salón, por sección y por código EAN.",
             Font = new Font("Segoe UI", 9.5F),
             ForeColor = Color.FromArgb(127, 140, 141),
             TextAlign = ContentAlignment.TopLeft,
@@ -83,7 +83,7 @@ public partial class AdministrationView : UserControl, IView
 
         cardLayout.Controls.Add(new Label
         {
-            Text = "No disponible por ahora",
+            Text = "Próximamente: reconteo de stock",
             Font = new Font("Segoe UI", 15F, FontStyle.Bold),
             ForeColor = Color.FromArgb(44, 62, 80),
             Dock = DockStyle.Fill,
@@ -92,8 +92,9 @@ public partial class AdministrationView : UserControl, IView
 
         cardLayout.Controls.Add(new Label
         {
-            Text = "Este módulo se habilitará en una próxima versión. La barra inferior\n" +
-                   "lo muestra deshabilitado para dejar claro que todavía no está listo.",
+            Text = "Este módulo servirá para el reconteo físico mensual: se contará la\n" +
+                   "mercadería real en depósito y salón, y se ajustará el stock del sistema\n" +
+                   "para evitar stock fantasma. Ver docs/reconteo-stock.md.",
             Font = new Font("Segoe UI", 9.5F),
             ForeColor = Color.FromArgb(127, 140, 141),
             Dock = DockStyle.Fill,

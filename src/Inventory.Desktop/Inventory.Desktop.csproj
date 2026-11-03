@@ -4,6 +4,9 @@
     <ProjectReference Include="..\Inventory.Application\Inventory.Application.csproj" />
     <ProjectReference Include="..\Inventory.Infrastructure\Inventory.Infrastructure.csproj" />
     <ProjectReference Include="..\Inventory.Domain\Inventory.Domain.csproj" />
+    <!-- Imagenes masivas por PLU/SKU: images/products/1157.png -->
+    <None Update="images\**\*" CopyToOutputDirectory="PreserveNewest" />
+
   </ItemGroup>
 
   <PropertyGroup>
@@ -11,6 +14,7 @@
     <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
